@@ -3,3 +3,5 @@ kite.api.key=<>
 kite.api.secret=<>
 kite.api.userId=<>
 dhan.access-token=<>
+dhan.client-id=<>
+alpha-vantage-api.key=<>

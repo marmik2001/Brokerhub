@@ -18,9 +18,9 @@ public class HoldingItem {
     private int t1Quantity; // Zerodha: t1Quantity, Dhan: t1Qty
     private String collateralQuantity; // Zerodha: collateralQuantity(String), Dhan: collateralQty (int)
     private double averagePrice; // Zerodha: averagePrice, Dhan: avgCostPrice
-    private double lastPrice; // Zerodha: lastPrice, Dhan: maybe fetch from market data
 
-    // Optional fields -> Only in Zerodha currently
+    // Fields -> Only in Zerodha, added to dhan using market-data-service
+    private double lastPrice;
     private double pnl;
     private double dayChange;
     private double dayChangePercentage;

@@ -24,6 +24,7 @@
 *.html   text eol=lf
 *.css    text eol=lf
 *.md     text eol=lf
+*.py     text eol=lf
 
 # === Binary files (never modify) ===
 *.png   binary
@@ -37,3 +38,6 @@
 *.gz    binary
 *.mp4   binary
 *.mp3   binary
+
+# Python virtual environment folders (treat as binary)
+backend/market-data-service/bhenv/** binary

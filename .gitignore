@@ -7,11 +7,19 @@ Thumbs.db
 *.log
 
 # =========================
-# Backend (Java / Spring Boot)
+# Backend (Java / Spring Boot + Python)
 # =========================
 backend/target/
 backend/src/main/resources/application.properties
 HELP.md
+
+# Python virtual environments
+backend/market-data-service/bhenv/
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+*.py[cod]
 
 # Build artifacts
 *.class
