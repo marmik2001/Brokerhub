@@ -20,7 +20,7 @@ def fetch_price_single(symbol: str) -> PriceResponse:
     ticker = yf.Ticker(symbol_nse)
     hist = ticker.history(period="2d")
     if hist.empty:
-        response = PriceResponse(symbol=symbol, lastPrice=0, pnl=0, dayChange=0, dayChangePercentage=0)
+        response = PriceResponse(symbol=symbol, lastPrice=0, dayChange=0, dayChangePercentage=0)
     else:
         last_price = hist['Close'].iloc[-1]
         prev_close = hist['Close'].iloc[-2]
@@ -30,7 +30,6 @@ def fetch_price_single(symbol: str) -> PriceResponse:
         response = PriceResponse(
             symbol=symbol,
             lastPrice=round(last_price, 2),
-            pnl=0,
             dayChange=round(day_change, 2),
             dayChangePercentage=round(day_change_pct, 2)
         )
@@ -68,12 +67,11 @@ def fetch_prices_batch(symbols: List[str]) -> List[PriceResponse]:
                 response = PriceResponse(
                     symbol=sym,
                     lastPrice=round(last_price, 2),
-                    pnl=0,
                     dayChange=round(day_change, 2),
                     dayChangePercentage=round(day_change_pct, 2)
                 )
             except:
-                response = PriceResponse(symbol=sym, lastPrice=0, pnl=0, dayChange=0, dayChangePercentage=0)
+                response = PriceResponse(symbol=sym, lastPrice=0, dayChange=0, dayChangePercentage=0)
 
             # Update cache
             cache[sym] = (response, now)

@@ -1,7 +1,23 @@
+# App
 spring.application.name=brokerhub
+spring.profiles.active=dev
+
+# Datasource
+spring.datasource.url=<>
+spring.datasource.username=<>
+spring.datasource.password=<>
+
+# Hibernate / JPA (let Flyway manage schema, not Hibernate)
+spring.jpa.hibernate.ddl-auto=validate
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+
+# Flyway
+spring.flyway.enabled=true
+spring.flyway.locations=classpath:db/migration
+
+# External API keys
 kite.api.key=<>
 kite.api.secret=<>
 kite.api.userId=<>
 dhan.access-token=<>
-dhan.client-id=<>
-alpha-vantage-api.key=<>
