@@ -76,8 +76,12 @@ public class DhanService {
                         holding.setDayChangePercentage(price.getDayChangePercentage());
 
                         // Compute PnL
-                        double pnl = (price.getLastPrice() - holding.getAveragePrice()) * holding.getQuantity();
-                        holding.setPnl(pnl);
+                        if (price.getLastPrice() == 0)
+                            holding.setPnl(0);
+                        else {
+                            double pnl = (price.getLastPrice() - holding.getAveragePrice()) * holding.getQuantity();
+                            holding.setPnl(pnl);
+                        }
                     }
                 });
 

@@ -35,7 +35,8 @@ def fetch_price_single(symbol: str) -> PriceResponse:
         )
 
     # Update cache
-    cache[symbol] = (response, now)
+    if (last_price != 0):
+        cache[symbol] = (response, now)
     return response
 
 def fetch_prices_batch(symbols: List[str]) -> List[PriceResponse]:
@@ -74,7 +75,8 @@ def fetch_prices_batch(symbols: List[str]) -> List[PriceResponse]:
                 response = PriceResponse(symbol=sym, lastPrice=0, dayChange=0, dayChangePercentage=0)
 
             # Update cache
-            cache[sym] = (response, now)
+            if (response.lastPrice != 0):
+                cache[sym] = (response, now)
             results.append(response)
 
     return results
