@@ -14,7 +14,7 @@ backend/src/main/resources/application.properties
 HELP.md
 
 # Python virtual environments
-backend/market-data-service/bhenv/
+market-data-service/bhenv/
 *.pyc
 __pycache__/
 *.pyo
