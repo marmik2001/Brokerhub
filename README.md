@@ -1,6 +1,6 @@
 # BrokerHub
 
-BrokerHub is an **family and group investment platform** that consolidates multiple brokerage accounts into a single dashboard.  
+BrokerHub is a **family and group investment platform** that consolidates multiple brokerage accounts into a single dashboard.  
 It enables families or groups of friends to view, manage, and analyze their combined portfolios with **role-based access control (RBAC)** and **privacy settings**.
 
 ---
