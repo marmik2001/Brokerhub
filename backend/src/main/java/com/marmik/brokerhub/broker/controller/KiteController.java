@@ -1,4 +1,4 @@
-package com.marmik.brokerhub.controller;
+package com.marmik.brokerhub.broker.controller;
 
 import java.util.List;
 
@@ -10,8 +10,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.marmik.brokerhub.dto.HoldingItem;
-import com.marmik.brokerhub.service.KiteService;
+import com.marmik.brokerhub.broker.dto.HoldingItem;
+import com.marmik.brokerhub.broker.service.KiteService;
 import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
 
 @RestController

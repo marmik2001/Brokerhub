@@ -1,6 +1,6 @@
-package com.marmik.brokerhub.adapter;
+package com.marmik.brokerhub.broker.adapter;
 
-import com.marmik.brokerhub.dto.HoldingItem;
+import com.marmik.brokerhub.broker.dto.HoldingItem;
 import com.zerodhatech.models.Holding;
 
 public class ZerodhaAdapter {

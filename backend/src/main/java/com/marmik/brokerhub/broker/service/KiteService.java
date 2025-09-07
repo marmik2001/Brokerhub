@@ -1,4 +1,4 @@
-package com.marmik.brokerhub.service;
+package com.marmik.brokerhub.broker.service;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -6,8 +6,8 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.marmik.brokerhub.adapter.ZerodhaAdapter;
-import com.marmik.brokerhub.dto.HoldingItem;
+import com.marmik.brokerhub.broker.adapter.ZerodhaAdapter;
+import com.marmik.brokerhub.broker.dto.HoldingItem;
 import com.zerodhatech.kiteconnect.KiteConnect;
 import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
 import com.zerodhatech.models.User;

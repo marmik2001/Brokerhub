@@ -1,7 +1,7 @@
-package com.marmik.brokerhub.adapter;
+package com.marmik.brokerhub.broker.adapter;
 
-import com.marmik.brokerhub.dto.HoldingItem;
-import com.marmik.brokerhub.dto.dhan.DhanHolding;
+import com.marmik.brokerhub.broker.dto.HoldingItem;
+import com.marmik.brokerhub.broker.dto.dhan.DhanHolding;
 
 public class DhanAdapter {
     public static HoldingItem fromDhan(DhanHolding holding) {

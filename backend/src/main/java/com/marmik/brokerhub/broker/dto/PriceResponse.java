@@ -1,4 +1,4 @@
-package com.marmik.brokerhub.dto;
+package com.marmik.brokerhub.broker.dto;
 
 import lombok.Data;
 

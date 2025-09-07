@@ -1,4 +1,4 @@
-package com.marmik.brokerhub.controller;
+package com.marmik.brokerhub.broker.controller;
 
 import java.util.List;
 
@@ -8,8 +8,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.marmik.brokerhub.dto.HoldingItem;
-import com.marmik.brokerhub.service.DhanService;
+import com.marmik.brokerhub.broker.dto.HoldingItem;
+import com.marmik.brokerhub.broker.service.DhanService;
 
 @RestController
 @RequestMapping("/api/dhan")

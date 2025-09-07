@@ -1,4 +1,4 @@
-package com.marmik.brokerhub.service;
+package com.marmik.brokerhub.broker.service;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -7,10 +7,10 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.marmik.brokerhub.dto.HoldingItem;
-import com.marmik.brokerhub.adapter.DhanAdapter;
-import com.marmik.brokerhub.dto.dhan.DhanHolding;
-import com.marmik.brokerhub.dto.PriceResponse;
+import com.marmik.brokerhub.broker.adapter.DhanAdapter;
+import com.marmik.brokerhub.broker.dto.HoldingItem;
+import com.marmik.brokerhub.broker.dto.PriceResponse;
+import com.marmik.brokerhub.broker.dto.dhan.DhanHolding;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 

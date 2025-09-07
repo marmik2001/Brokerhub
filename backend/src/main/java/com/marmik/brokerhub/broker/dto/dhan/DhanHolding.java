@@ -1,4 +1,4 @@
-package com.marmik.brokerhub.dto.dhan;
+package com.marmik.brokerhub.broker.dto.dhan;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
