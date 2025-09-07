@@ -8,12 +8,11 @@ spring.datasource.username=<>
 spring.datasource.password=<>
 
 # Market data service
-marketdata.base-url = http://localhost:8000
+marketdata.base-url = <>
 
 # Hibernate / JPA (let Flyway manage schema, not Hibernate)
 spring.jpa.hibernate.ddl-auto=validate
 spring.jpa.show-sql=true
-spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
 
 # Flyway
 spring.flyway.enabled=true
