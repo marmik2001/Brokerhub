@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -22,11 +23,8 @@ public class AccountService {
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
-    public AccountMember createAccountWithAdmin(String accountName,
-            String accountDesc,
-            String loginId,
-            String memberName,
-            String rawPassword) {
+    public AccountMember createAccountWithAdmin(String accountName, String accountDesc, String loginId,
+            String memberName, String rawPassword) {
         Optional<AccountMember> existing = memberRepo.findByLoginId(loginId);
         if (existing.isPresent()) {
             throw new IllegalArgumentException("loginId is already taken, please choose another!");
@@ -48,4 +46,25 @@ public class AccountService {
         memberRepo.save(admin);
         return admin;
     }
+
+    @Transactional
+    public AccountMember addMember(String accountId,
+            String loginId,
+            String memberName,
+            String rawPassword,
+            String role) {
+        if (memberRepo.findByLoginId(loginId).isPresent()) {
+            throw new IllegalArgumentException("loginId already exists");
+        }
+        AccountMember member = new AccountMember();
+        member.setLoginId(loginId);
+        member.setAccountId(UUID.fromString(accountId));
+        member.setMemberName(memberName);
+        member.setPasswordHash(passwordEncoder.encode(rawPassword));
+        member.setRole(role);
+        member.setRules("{}");
+        memberRepo.save(member);
+        return member;
+    }
+
 }
