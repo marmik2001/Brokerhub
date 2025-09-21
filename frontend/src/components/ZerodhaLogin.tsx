@@ -1,6 +1,6 @@
 // src/components/Login.tsx
 import { useEffect, useState } from "react";
-import API from "../api";
+import KITE_API from "../api";
 
 const Login = () => {
   const [loginUrl, setLoginUrl] = useState<string | null>(null);
@@ -10,7 +10,7 @@ const Login = () => {
   useEffect(() => {
     const fetchLoginUrl = async () => {
       try {
-        const response = await API.get("/login-url");
+        const response = await KITE_API.get("/login-url");
         setLoginUrl(response.data); // backend should return the Zerodha login URL as string
       } catch (err) {
         setError("Failed to load login URL");

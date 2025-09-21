@@ -1,6 +1,6 @@
 // src/pages/Portfolio.tsx
 import { useEffect, useState } from "react";
-import API from "../api";
+import KITE_API from "../api";
 import HoldingsTable from "../components/HoldingsTable";
 import type { Holding } from "../types/portfolio";
 
@@ -12,7 +12,7 @@ const Portfolio = () => {
   useEffect(() => {
     const fetchHoldings = async () => {
       try {
-        const response = await API.get("/holdings");
+        const response = await KITE_API.get("/holdings");
 
         // Transform backend response → Holding[]
         const transformed: Holding[] = response.data.map((item: any) => ({

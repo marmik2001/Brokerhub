@@ -1,7 +1,7 @@
 // src/pages/ZerodhaCallback.tsx
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import API from "../api";
+import KITE_API from "../api";
 
 const ZerodhaCallback = () => {
   const [params] = useSearchParams();
@@ -11,7 +11,7 @@ const ZerodhaCallback = () => {
   useEffect(() => {
     const requestToken = params.get("request_token");
     if (requestToken) {
-      API.post(`/generate-token?requestToken=${requestToken}`)
+      KITE_API.post(`/generate-token?requestToken=${requestToken}`)
         .then(() => {
           setStatus("Login successful! Redirecting...");
           setTimeout(() => navigate("/portfolio"), 1000);
