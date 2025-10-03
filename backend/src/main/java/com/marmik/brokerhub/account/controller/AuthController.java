@@ -22,6 +22,9 @@ public class AuthController {
     public static record LoginRequest(String loginId, String password) {
     }
 
+    public static record ChangePasswordRequest(String oldPassword, String newPassword) {
+    }
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest req) {
         AccountMember member = authService.authenticate(req.loginId(), req.password());
@@ -39,4 +42,22 @@ public class AuthController {
                 "accountId", member.getAccountId(),
                 "role", member.getRole()));
     }
+
+    @PutMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest req,
+            @RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "");
+        String memberId = jwtUtil.getMemberId(token).orElse(null);
+
+        if (memberId == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
+        }
+
+        boolean updated = authService.changePasswordById(memberId, req.oldPassword(), req.newPassword());
+        if (!updated) {
+            return ResponseEntity.status(400).body(Map.of("error", "Old password is incorrect"));
+        }
+        return ResponseEntity.ok(Map.of("message", "Password updated successfully"));
+    }
+
 }

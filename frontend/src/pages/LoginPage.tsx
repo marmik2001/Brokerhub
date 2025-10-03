@@ -26,8 +26,7 @@ const LoginPage: React.FC = () => {
       navigate("/");
     } catch (rawErr: any) {
       const { message } = parseApiError(rawErr);
-      setError("Invalid credentials. Try testuser/password123");
-      toast.error(message || "Invalid credentials");
+      setError(message || "Invalid credentials");
     } finally {
       setLoading(false);
       setPassword("");

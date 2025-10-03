@@ -9,6 +9,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @AllArgsConstructor
 @Service
@@ -25,4 +26,19 @@ public class AuthService {
             return m;
         return null;
     }
+
+    public boolean changePasswordById(String memberId, String oldPassword, String newPassword) {
+        Optional<AccountMember> maybe = memberRepo.findById(UUID.fromString(memberId));
+        if (maybe.isEmpty()) {
+            return false;
+        }
+        AccountMember m = maybe.get();
+        if (!passwordEncoder.matches(oldPassword, m.getPasswordHash())) {
+            return false;
+        }
+        m.setPasswordHash(passwordEncoder.encode(newPassword));
+        memberRepo.save(m);
+        return true;
+    }
+
 }

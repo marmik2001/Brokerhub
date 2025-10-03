@@ -11,6 +11,11 @@ export interface LoginResponse {
   role: "ADMIN" | "MEMBER";
 }
 
+export interface ChangePasswordPayload {
+  oldPassword: string;
+  newPassword: string;
+}
+
 /**
  * Helper for POST JSON and handling error responses.
  */
@@ -40,3 +45,28 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
 export async function loginService(req: LoginRequest): Promise<LoginResponse> {
   return postJson<LoginResponse>("/api/auth/login", req);
 }
+
+export const changePassword = async (payload: ChangePasswordPayload) => {
+  const token = localStorage.getItem("brokerhub_token");
+
+  if (!token) {
+    throw new Error("No token found. Please log in again.");
+  }
+
+  const res = await fetch("/api/auth/change-password", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || "Failed to change password");
+  }
+
+  return data;
+};
