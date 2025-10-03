@@ -3,6 +3,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import { toast } from "react-hot-toast";
+import { parseApiError } from "../utils/apiError";
 
 const LoginPage: React.FC = () => {
   const { login } = useAuth();
@@ -20,11 +22,15 @@ const LoginPage: React.FC = () => {
 
     try {
       await login(loginId, password);
+      toast.success("Logged in");
       navigate("/");
-    } catch (err: any) {
-      setError(err?.message ?? "Invalid credentials. Try testuser/password123");
+    } catch (rawErr: any) {
+      const { message } = parseApiError(rawErr);
+      setError("Invalid credentials. Try testuser/password123");
+      toast.error(message || "Invalid credentials");
     } finally {
       setLoading(false);
+      setPassword("");
     }
   };
 
@@ -85,13 +91,25 @@ const LoginPage: React.FC = () => {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
-              {loading ? "Logging in..." : "Login"}
-            </button>
+            <div className="flex flex-col gap-3">
+              <button
+                type="submit"
+                disabled={loading}
+                aria-busy={loading}
+                className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {loading ? "Logging in..." : "Login"}
+              </button>
+
+              {/* Sign up secondary button */}
+              <button
+                type="button"
+                onClick={() => navigate("/signup")}
+                className="w-full border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50"
+              >
+                Create an account
+              </button>
+            </div>
           </form>
 
           <p className="mt-4 text-sm text-gray-600 text-center">

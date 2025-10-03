@@ -1,5 +1,7 @@
 // src/App.tsx
+import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
@@ -9,15 +11,22 @@ import SettingsBrokerPage from "./pages/settings/BrokerPage";
 import SettingsPrivacyPage from "./pages/settings/PrivacyPage";
 import SettingsGroupPage from "./pages/settings/GroupPage";
 import AppLayout from "./components/layout/AppLayout";
+import SignupPage from "./pages/SignupPage.tsx";
 
 export default function App() {
   return (
     <BrowserRouter>
+      {/* Global toaster for toast messages */}
+      <Toaster position="top-right" />
+
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
 
-          {/* All protected routes go under this single block */}
+          {/* Public signup placeholder route (SignupPage will replace this later) */}
+          <Route path="/signup" element={<SignupPage />} />
+
+          {/* All protected routes */}
           <Route
             path="/*"
             element={

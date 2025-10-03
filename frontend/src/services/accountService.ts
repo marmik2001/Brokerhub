@@ -1,19 +1,18 @@
-// src/services/authService.ts
-export interface LoginRequest {
+// src/services/accountService.ts
+export interface SignupRequest {
+  accountName: string;
+  accountDesc?: string;
   loginId: string;
+  memberName: string;
   password: string;
 }
 
-export interface LoginResponse {
-  token: string;
+export interface SignupResponse {
   memberId: string;
   accountId: string;
   role: "ADMIN" | "MEMBER";
 }
 
-/**
- * Helper for POST JSON and handling error responses.
- */
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, {
     method: "POST",
@@ -27,6 +26,7 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   } catch {}
 
   if (!res.ok) {
+    // prefer server-provided error message when available
     const msg =
       parsed?.error ||
       parsed?.message ||
@@ -37,6 +37,10 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return parsed as T;
 }
 
-export async function loginService(req: LoginRequest): Promise<LoginResponse> {
-  return postJson<LoginResponse>("/api/auth/login", req);
+/**
+ * Call backend to create an account + initial admin member.
+ * Throws Error with server message when the backend returns non-2xx.
+ */
+export async function signup(req: SignupRequest): Promise<SignupResponse> {
+  return postJson<SignupResponse>("/api/accounts/signup", req);
 }

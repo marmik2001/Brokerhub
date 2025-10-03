@@ -1,5 +1,15 @@
+// src/contexts/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { loginService, type AuthUser } from "../services/authService";
+import { loginService } from "../services/authService";
+
+export interface AuthUser {
+  id: string; // memberId from backend
+  loginId: string;
+  name: string;
+  role: "ADMIN" | "MEMBER";
+  token: string;
+  accountId?: string;
+}
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -22,13 +32,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // On mount, hydrate from localStorage if present
   useEffect(() => {
     const token = localStorage.getItem("brokerhub_token");
     const userData = localStorage.getItem("brokerhub_user");
     if (token && userData) {
       try {
-        setUser(JSON.parse(userData) as AuthUser);
-      } catch {
+        const parsed = JSON.parse(userData) as AuthUser;
+        // ensure token is in parsed object (backwards compatibility)
+        if (!parsed.token) parsed.token = token;
+        setUser(parsed);
+      } catch (e) {
         localStorage.removeItem("brokerhub_token");
         localStorage.removeItem("brokerhub_user");
       }
@@ -36,11 +50,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setLoading(false);
   }, []);
 
+  // Perform login via backend authService
   const login = async (loginId: string, password: string) => {
-    const u = await loginService(loginId, password);
-    localStorage.setItem("brokerhub_token", u.token);
-    localStorage.setItem("brokerhub_user", JSON.stringify(u));
-    setUser(u);
+    // call backend login
+    const resp = await loginService({ loginId, password });
+    // resp: { token, memberId, accountId, role }
+    const userObj: AuthUser = {
+      id: resp.memberId,
+      loginId,
+      name: loginId, // backend doesn't return memberName on login; can fetch later
+      role: resp.role,
+      token: resp.token,
+      accountId: resp.accountId,
+    };
+
+    localStorage.setItem("brokerhub_token", userObj.token);
+    localStorage.setItem("brokerhub_user", JSON.stringify(userObj));
+    setUser(userObj);
   };
 
   const logout = () => {
