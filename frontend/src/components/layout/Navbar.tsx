@@ -1,7 +1,14 @@
 // src/components/layout/Navbar.tsx
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { User, Settings, Home, ChevronDown, LogOut, Menu } from "lucide-react";
+import {
+  User,
+  Home,
+  ChevronDown,
+  LogOut,
+  Menu,
+  Settings as Gear,
+} from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
 const Navbar: React.FC<{ onToggleSidebar?: () => void }> = ({
@@ -24,6 +31,11 @@ const Navbar: React.FC<{ onToggleSidebar?: () => void }> = ({
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+
+  const goToSettings = () => {
+    setOpen(false);
+    navigate("/settings/profile");
   };
 
   return (
@@ -64,43 +76,12 @@ const Navbar: React.FC<{ onToggleSidebar?: () => void }> = ({
 
           {open && (
             <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
-              <Link
-                to="/settings/profile"
-                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                onClick={() => setOpen(false)}
+              <button
+                onClick={goToSettings}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
               >
-                <User className="w-4 h-4" />
-                Profile
-              </Link>
-
-              <Link
-                to="/settings/broker"
-                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                onClick={() => setOpen(false)}
-              >
-                <Settings className="w-4 h-4" />
-                Broker Access
-              </Link>
-
-              <Link
-                to="/settings/privacy"
-                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                onClick={() => setOpen(false)}
-              >
-                <Settings className="w-4 h-4" />
-                Privacy
-              </Link>
-
-              {user?.role === "ADMIN" && (
-                <Link
-                  to="/settings/group"
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  onClick={() => setOpen(false)}
-                >
-                  <Settings className="w-4 h-4" />
-                  Group Management
-                </Link>
-              )}
+                <Gear className="w-4 h-4" /> Settings
+              </button>
 
               <hr className="my-1 border-gray-200" />
               <button

@@ -1,47 +1,47 @@
 // src/components/layout/Breadcrumb.tsx
 import React from "react";
 import { useLocation, Link } from "react-router-dom";
-import { ROUTE_LABELS } from "../../routes/routeLabels.ts";
 
 const Breadcrumb: React.FC = () => {
   const location = useLocation();
   const paths = location.pathname.split("/").filter(Boolean);
 
-  if (paths.length === 0) {
-    return (
-      <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-sm text-gray-600">Home</div>
-        </div>
-      </div>
-    );
-  }
+  // Mapping for nicer labels
+  const labels: Record<string, string> = {
+    "": "Dashboard",
+    settings: "Settings",
+    profile: "Profile",
+    broker: "Broker Access",
+    privacy: "Privacy",
+    group: "Group Management",
+  };
 
-  const crumbs = paths.map((p, idx) => {
-    const to = "/" + paths.slice(0, idx + 1).join("/");
-    return {
-      label: ROUTE_LABELS[p] ?? p.charAt(0).toUpperCase() + p.slice(1),
-      to,
-    };
-  });
+  // Build breadcrumb segments
+  const crumbs = paths.length === 0 ? [""] : paths;
 
   return (
     <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          {crumbs.map((c, i) => (
-            <React.Fragment key={i}>
-              {i > 0 && <span>/</span>}
-              {i < crumbs.length - 1 ? (
-                <Link to={c.to} className="text-gray-600 hover:underline">
-                  {c.label}
-                </Link>
-              ) : (
-                <span className="text-gray-900 font-medium">{c.label}</span>
-              )}
-            </React.Fragment>
-          ))}
-        </div>
+        <nav className="flex items-center gap-2 text-sm text-gray-600">
+          {crumbs.map((segment, idx) => {
+            const to = "/" + crumbs.slice(0, idx + 1).join("/");
+            const isLast = idx === crumbs.length - 1;
+            const label = labels[segment] || segment;
+
+            return (
+              <React.Fragment key={to}>
+                {idx > 0 && <span>/</span>}
+                {isLast ? (
+                  <span className="text-gray-900 font-medium">{label}</span>
+                ) : (
+                  <Link to={to} className="hover:underline">
+                    {label}
+                  </Link>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </nav>
       </div>
     </div>
   );
