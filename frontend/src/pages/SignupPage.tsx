@@ -48,6 +48,7 @@ const SignupPage: React.FC = () => {
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof SignupForm, string>>
   >({});
+  const [formError, setFormError] = useState<string | null>(null); // NEW: form-level error
   const [submitting, setSubmitting] = useState(false);
 
   const handleChange =
@@ -55,6 +56,7 @@ const SignupPage: React.FC = () => {
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       setForm((s) => ({ ...s, [k]: e.target.value }));
       setFieldErrors((f) => ({ ...f, [k]: undefined }));
+      setFormError(null); // clear top-level error on change
     };
 
   const setFieldError = (field: keyof SignupForm, msg: string) => {
@@ -68,7 +70,9 @@ const SignupPage: React.FC = () => {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFieldErrors({});
-    // client-side validation
+    setFormError(null);
+
+    // client-side validation — collect and show all issues
     const parsed = signupSchema.safeParse(form);
     if (!parsed.success) {
       const zErrors: Partial<Record<keyof SignupForm, string>> = {};
@@ -94,20 +98,31 @@ const SignupPage: React.FC = () => {
       await signupService(payload);
       // auto-login
       await auth.login(form.loginId, form.password);
-
       toast.success(
         `Welcome, ${form.memberName || form.loginId}! Your account is ready.`
       );
+
       navigate("/");
     } catch (rawErr: any) {
       const { message, field } = parseApiError(rawErr);
-      // set inline field error for loginId if applicable
-      if (field === "loginId") {
-        setFieldError("loginId", message);
+      if (
+        field &&
+        (
+          [
+            "accountName",
+            "accountDesc",
+            "loginId",
+            "memberName",
+            "password",
+            "confirmPassword",
+          ] as (keyof SignupForm)[]
+        ).includes(field as keyof SignupForm)
+      ) {
+        setFieldError(field as keyof SignupForm, message);
+      } else {
+        // inline, top-of-form error for non-field errors
+        setFormError(message || "Signup failed — try again.");
       }
-      // show toast for the error
-      toast.error(message || "Signup failed — try again");
-      // clear sensitive fields
       clearPasswordFields();
     } finally {
       setSubmitting(false);
@@ -126,10 +141,21 @@ const SignupPage: React.FC = () => {
             unique.
           </p>
 
+          {/* Inline top-level error (no toasts) */}
+          {formError && (
+            <div
+              role="alert"
+              className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+            >
+              {formError}
+            </div>
+          )}
+
           <form
             onSubmit={onSubmit}
             className="space-y-4"
             aria-labelledby="signup-form"
+            noValidate
           >
             <div>
               <label
