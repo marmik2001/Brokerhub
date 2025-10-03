@@ -1,18 +1,54 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Login from "./components/ZerodhaLogin";
-import ZerodhaCallback from "./pages/ZerodhaCallback";
-import Portfolio from "./pages/Portfolio";
+// src/App.tsx
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+import LoginPage from "./pages/LoginPage";
+import HomePage from "./pages/HomePage";
+import SettingsProfilePage from "./pages/settings/ProfilePage";
+import SettingsBrokerPage from "./pages/settings/BrokerPage";
+import SettingsPrivacyPage from "./pages/settings/PrivacyPage";
+import SettingsGroupPage from "./pages/settings/GroupPage";
+import AppLayout from "./components/layout/AppLayout";
 
-function App() {
+export default function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/zerodhaLogin" element={<Login />} />
-        <Route path="/redirect" element={<ZerodhaCallback />} />
-        <Route path="/portfolio" element={<Portfolio />} />
-      </Routes>
-    </Router>
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+
+          {/* All protected routes go under this single block */}
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <Routes>
+                    <Route path="/" element={<HomePage />} />
+                    <Route
+                      path="/settings/profile"
+                      element={<SettingsProfilePage />}
+                    />
+                    <Route
+                      path="/settings/broker"
+                      element={<SettingsBrokerPage />}
+                    />
+                    <Route
+                      path="/settings/privacy"
+                      element={<SettingsPrivacyPage />}
+                    />
+                    <Route
+                      path="/settings/group"
+                      element={<SettingsGroupPage />}
+                    />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
-
-export default App;
