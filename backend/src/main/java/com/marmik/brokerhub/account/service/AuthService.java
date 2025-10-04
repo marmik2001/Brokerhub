@@ -1,44 +1,52 @@
 package com.marmik.brokerhub.account.service;
 
-import com.marmik.brokerhub.account.model.AccountMember;
-import com.marmik.brokerhub.account.repository.AccountMemberRepository;
-
-import lombok.AllArgsConstructor;
-
+import com.marmik.brokerhub.account.model.User;
+import com.marmik.brokerhub.account.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 import java.util.UUID;
 
-@AllArgsConstructor
 @Service
+@RequiredArgsConstructor
 public class AuthService {
-    private final AccountMemberRepository memberRepo;
+
+    private final UserRepository userRepo;
     private final PasswordEncoder passwordEncoder;
 
-    public AccountMember authenticate(String identifier, String rawPassword) {
-        Optional<AccountMember> maybe = memberRepo.findByLoginIdOrEmailIgnoreCase(identifier);
+    /**
+     * Authenticate by loginId or email.
+     * Returns the User if valid, else null.
+     */
+    public User authenticate(String identifier, String rawPassword) {
+        Optional<User> maybe = userRepo.findByLoginIdOrEmailIgnoreCase(identifier);
         if (maybe.isEmpty())
             return null;
-        AccountMember m = maybe.get();
-        if (passwordEncoder.matches(rawPassword, m.getPasswordHash()))
-            return m;
+
+        User user = maybe.get();
+        if (passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
+            return user;
+        }
         return null;
     }
 
-    public boolean changePasswordById(String memberId, String oldPassword, String newPassword) {
-        Optional<AccountMember> maybe = memberRepo.findById(UUID.fromString(memberId));
-        if (maybe.isEmpty()) {
+    /**
+     * Change password by userId (global, not per-account).
+     */
+    public boolean changePasswordById(String userId, String oldPassword, String newPassword) {
+        Optional<User> maybe = userRepo.findById(UUID.fromString(userId));
+        if (maybe.isEmpty())
+            return false;
+
+        User user = maybe.get();
+        if (!passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
             return false;
         }
-        AccountMember m = maybe.get();
-        if (!passwordEncoder.matches(oldPassword, m.getPasswordHash())) {
-            return false;
-        }
-        m.setPasswordHash(passwordEncoder.encode(newPassword));
-        memberRepo.save(m);
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepo.save(user);
         return true;
     }
-
 }

@@ -1,4 +1,3 @@
-// src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -12,19 +11,29 @@ import SettingsGroupPage from "./pages/settings/GroupPage";
 import AppLayout from "./components/layout/AppLayout";
 import SettingsLayout from "./components/layout/SettingsLayout";
 import SignupPage from "./pages/SignupPage";
+import SelectAccountPage from "./pages/SelectAccountPage";
 
 export default function App() {
   return (
     <BrowserRouter>
       <Toaster position="top-right" />
-
       <AuthProvider>
         <Routes>
-          {/* Public routes */}
+          {/* ---------- Public routes ---------- */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
 
-          {/* Protected app routes */}
+          {/* ---------- Group selection (after login) ---------- */}
+          <Route
+            path="/select-account"
+            element={
+              <ProtectedRoute>
+                <SelectAccountPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ---------- Protected app routes ---------- */}
           <Route
             path="/"
             element={
@@ -36,7 +45,7 @@ export default function App() {
             }
           />
 
-          {/* Settings section with sidebar */}
+          {/* ---------- Settings section (has sidebar) ---------- */}
           <Route
             path="/settings"
             element={
@@ -54,7 +63,7 @@ export default function App() {
             <Route path="group" element={<SettingsGroupPage />} />
           </Route>
 
-          {/* Fallback */}
+          {/* ---------- Fallback ---------- */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>

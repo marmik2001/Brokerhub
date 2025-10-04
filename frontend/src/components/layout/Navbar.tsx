@@ -8,6 +8,7 @@ import {
   LogOut,
   Menu,
   Settings as Gear,
+  Layers,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -36,6 +37,11 @@ const Navbar: React.FC<{ onToggleSidebar?: () => void }> = ({
   const goToSettings = () => {
     setOpen(false);
     navigate("/settings/profile");
+  };
+
+  const goToGroupSelect = () => {
+    setOpen(false);
+    navigate("/select-account");
   };
 
   return (
@@ -82,7 +88,12 @@ const Navbar: React.FC<{ onToggleSidebar?: () => void }> = ({
               >
                 <Gear className="w-4 h-4" /> Settings
               </button>
-
+              <button
+                onClick={goToGroupSelect}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
+              >
+                <Layers className="w-4 h-4" /> Change Group
+              </button>
               <hr className="my-1 border-gray-200" />
               <button
                 onClick={handleLogout}

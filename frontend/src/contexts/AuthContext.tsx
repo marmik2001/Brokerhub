@@ -1,20 +1,25 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { loginService } from "../services/authService";
 
-export interface AuthUser {
-  id: string; // memberId from backend
-  loginId: string;
-  name: string;
+interface AccountSummary {
+  accountId: string;
   role: "ADMIN" | "MEMBER";
-  token: string;
-  accountId?: string;
+}
+
+interface AuthUser {
+  id: string;
+  loginId: string;
   email?: string;
+  name: string;
 }
 
 interface AuthContextType {
   user: AuthUser | null;
-  login: (identifier: string, password: string) => Promise<void>; // updated param name
+  token: string | null;
+  accounts: AccountSummary[];
+  activeAccount: AccountSummary | null;
+  login: (identifier: string, password: string) => Promise<void>;
   logout: () => void;
+  selectAccount: (accountId: string) => void;
   isAuthenticated: boolean;
 }
 
@@ -30,62 +35,83 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState<AccountSummary[]>([]);
+  const [activeAccount, setActiveAccount] = useState<AccountSummary | null>(
+    null
+  );
 
-  // On mount, hydrate from localStorage if present
   useEffect(() => {
-    const token = localStorage.getItem("brokerhub_token");
-    const userData = localStorage.getItem("brokerhub_user");
-    if (token && userData) {
-      try {
-        const parsed = JSON.parse(userData) as AuthUser;
-        if (!parsed.token) parsed.token = token; // backwards compatibility
-        setUser(parsed);
-      } catch {
-        localStorage.removeItem("brokerhub_token");
-        localStorage.removeItem("brokerhub_user");
-      }
+    const stored = localStorage.getItem("brokerhub_auth");
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      setUser(parsed.user);
+      setToken(parsed.token);
+      setAccounts(parsed.accounts || []);
+      setActiveAccount(parsed.activeAccount || null);
     }
-    setLoading(false);
   }, []);
 
-  // Perform login via backend authService
   const login = async (identifier: string, password: string) => {
-    // Call backend login (identifier can be email or loginId)
-    const resp = await loginService({ identifier, password });
-    // resp: { token, memberId, accountId, role }
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier, password }),
+    });
 
-    const userObj: AuthUser = {
-      id: resp.memberId,
-      loginId: identifier,
-      name: identifier, // backend doesn’t return memberName; can fetch later
-      role: resp.role,
-      token: resp.token,
-      accountId: resp.accountId,
+    if (!res.ok) throw new Error("Invalid credentials");
+    const data = await res.json();
+
+    const firstAccount = data.accounts?.[0] || null;
+
+    const authData = {
+      token: data.token,
+      user: data.user,
+      accounts: data.accounts,
+      activeAccount: firstAccount,
     };
 
-    localStorage.setItem("brokerhub_token", userObj.token);
-    localStorage.setItem("brokerhub_user", JSON.stringify(userObj));
-    setUser(userObj);
+    localStorage.setItem("brokerhub_auth", JSON.stringify(authData));
+    setUser(data.user);
+    setToken(data.token);
+    setAccounts(data.accounts);
+    setActiveAccount(firstAccount);
   };
 
   const logout = () => {
-    localStorage.removeItem("brokerhub_token");
-    localStorage.removeItem("brokerhub_user");
+    localStorage.removeItem("brokerhub_auth");
     setUser(null);
+    setToken(null);
+    setAccounts([]);
+    setActiveAccount(null);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
-      </div>
-    );
-  }
+  const selectAccount = (accountId: string) => {
+    const selected = accounts.find((a) => a.accountId === accountId) || null;
+    if (selected) {
+      const updated = {
+        token,
+        user,
+        accounts,
+        activeAccount: selected,
+      };
+      localStorage.setItem("brokerhub_auth", JSON.stringify(updated));
+      setActiveAccount(selected);
+    }
+  };
 
   return (
     <AuthContext.Provider
-      value={{ user, login, logout, isAuthenticated: !!user }}
+      value={{
+        user,
+        token,
+        accounts,
+        activeAccount,
+        login,
+        logout,
+        selectAccount,
+        isAuthenticated: !!token,
+      }}
     >
       {children}
     </AuthContext.Provider>

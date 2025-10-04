@@ -2,7 +2,6 @@ package com.marmik.brokerhub.account.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
-
 import java.util.UUID;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -13,19 +12,16 @@ import org.hibernate.type.SqlTypes;
 public class AccountMember {
 
     @Id
-    private UUID id;
+    private UUID id = UUID.randomUUID();
 
-    @Column(name = "login_id", nullable = false, unique = true)
-    private String loginId;
-
+    // Link to the Account
     @Column(name = "account_id", nullable = false)
     private UUID accountId;
 
-    @Column(name = "member_name", nullable = false)
-    private String memberName;
-
-    @Column(name = "password_hash", nullable = false)
-    private String passwordHash;
+    // Link to the User (global identity)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
     @Column(nullable = false)
     private String role; // "ADMIN" or "MEMBER"
@@ -33,12 +29,4 @@ public class AccountMember {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb", nullable = true)
     private String rules = "{}";
-
-    @Column(name = "email", unique = true)
-    private String email;
-
-    public AccountMember() {
-        this.id = UUID.randomUUID();
-    }
-
 }

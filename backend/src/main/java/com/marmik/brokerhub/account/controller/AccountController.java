@@ -2,15 +2,15 @@ package com.marmik.brokerhub.account.controller;
 
 import com.marmik.brokerhub.account.model.AccountMember;
 import com.marmik.brokerhub.account.service.AccountService;
-
-import java.util.Map;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/accounts")
 public class AccountController {
+
     private final AccountService accountService;
 
     public AccountController(AccountService accountService) {
@@ -29,6 +29,7 @@ public class AccountController {
     public static record AddMemberRequest(
             String loginId,
             String memberName,
+            String email,
             String password,
             String role) {
     }
@@ -43,6 +44,7 @@ public class AccountController {
                     req.memberName(),
                     req.email(),
                     req.password());
+
             return ResponseEntity.ok(Map.of(
                     "memberId", admin.getId(),
                     "accountId", admin.getAccountId(),
@@ -53,14 +55,14 @@ public class AccountController {
     }
 
     @PostMapping("/{accountId}/members")
-    public ResponseEntity<?> addMember(
-            @PathVariable String accountId,
+    public ResponseEntity<?> addMember(@PathVariable String accountId,
             @RequestBody AddMemberRequest req) {
         try {
             AccountMember member = accountService.addMember(
                     accountId,
                     req.loginId(),
                     req.memberName(),
+                    req.email(),
                     req.password(),
                     req.role());
             return ResponseEntity.ok(Map.of(

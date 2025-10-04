@@ -22,7 +22,7 @@ const LoginPage: React.FC = () => {
     try {
       await login(identifier, password);
       toast.success("Logged in");
-      navigate("/");
+      navigate("/select-account");
     } catch (rawErr: any) {
       const { message } = parseApiError(rawErr);
       setError(message || "Invalid credentials");
