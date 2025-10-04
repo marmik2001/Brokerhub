@@ -1,6 +1,5 @@
-// src/services/authService.ts
 export interface LoginRequest {
-  loginId: string;
+  identifier: string;
   password: string;
 }
 

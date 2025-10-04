@@ -1,9 +1,9 @@
-// src/services/accountService.ts
 export interface SignupRequest {
   accountName: string;
   accountDesc?: string;
   loginId: string;
   memberName: string;
+  email?: string;
   password: string;
 }
 
@@ -26,7 +26,6 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   } catch {}
 
   if (!res.ok) {
-    // prefer server-provided error message when available
     const msg =
       parsed?.error ||
       parsed?.message ||
@@ -37,10 +36,6 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return parsed as T;
 }
 
-/**
- * Call backend to create an account + initial admin member.
- * Throws Error with server message when the backend returns non-2xx.
- */
 export async function signup(req: SignupRequest): Promise<SignupResponse> {
   return postJson<SignupResponse>("/api/accounts/signup", req);
 }

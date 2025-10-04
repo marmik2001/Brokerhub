@@ -1,4 +1,3 @@
-// src/contexts/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { loginService } from "../services/authService";
 
@@ -9,11 +8,12 @@ export interface AuthUser {
   role: "ADMIN" | "MEMBER";
   token: string;
   accountId?: string;
+  email?: string;
 }
 
 interface AuthContextType {
   user: AuthUser | null;
-  login: (loginId: string, password: string) => Promise<void>;
+  login: (identifier: string, password: string) => Promise<void>; // updated param name
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -39,10 +39,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     if (token && userData) {
       try {
         const parsed = JSON.parse(userData) as AuthUser;
-        // ensure token is in parsed object (backwards compatibility)
-        if (!parsed.token) parsed.token = token;
+        if (!parsed.token) parsed.token = token; // backwards compatibility
         setUser(parsed);
-      } catch (e) {
+      } catch {
         localStorage.removeItem("brokerhub_token");
         localStorage.removeItem("brokerhub_user");
       }
@@ -51,14 +50,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   // Perform login via backend authService
-  const login = async (loginId: string, password: string) => {
-    // call backend login
-    const resp = await loginService({ loginId, password });
+  const login = async (identifier: string, password: string) => {
+    // Call backend login (identifier can be email or loginId)
+    const resp = await loginService({ identifier, password });
     // resp: { token, memberId, accountId, role }
+
     const userObj: AuthUser = {
       id: resp.memberId,
-      loginId,
-      name: loginId, // backend doesn't return memberName on login; can fetch later
+      loginId: identifier,
+      name: identifier, // backend doesn’t return memberName; can fetch later
       role: resp.role,
       token: resp.token,
       accountId: resp.accountId,

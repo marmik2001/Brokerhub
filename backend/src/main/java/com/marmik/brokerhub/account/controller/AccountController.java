@@ -22,6 +22,7 @@ public class AccountController {
             String accountDesc,
             String loginId,
             String memberName,
+            String email,
             String password) {
     }
 
@@ -40,6 +41,7 @@ public class AccountController {
                     req.accountDesc(),
                     req.loginId(),
                     req.memberName(),
+                    req.email(),
                     req.password());
             return ResponseEntity.ok(Map.of(
                     "memberId", admin.getId(),

@@ -19,7 +19,7 @@ public class AuthController {
         this.jwtUtil = jwtUtil;
     }
 
-    public static record LoginRequest(String loginId, String password) {
+    public static record LoginRequest(String identifier, String password) {
     }
 
     public static record ChangePasswordRequest(String oldPassword, String newPassword) {
@@ -27,7 +27,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest req) {
-        AccountMember member = authService.authenticate(req.loginId(), req.password());
+        AccountMember member = authService.authenticate(req.identifier(), req.password());
         if (member == null) {
             return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }

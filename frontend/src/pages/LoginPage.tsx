@@ -1,4 +1,3 @@
-// src/pages/LoginPage.tsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
@@ -9,7 +8,7 @@ import { parseApiError } from "../utils/apiError";
 const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [loginId, setLoginId] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -21,7 +20,7 @@ const LoginPage: React.FC = () => {
     setLoading(true);
 
     try {
-      await login(loginId, password);
+      await login(identifier, password);
       toast.success("Logged in");
       navigate("/");
     } catch (rawErr: any) {
@@ -44,14 +43,14 @@ const LoginPage: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Login ID
+                Email or Login ID
               </label>
               <input
                 type="text"
-                value={loginId}
-                onChange={(e) => setLoginId(e.target.value)}
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="testuser"
+                placeholder="user@example.com or testuser"
                 required
               />
             </div>
@@ -66,7 +65,7 @@ const LoginPage: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="password123"
+                  placeholder="********"
                   required
                 />
                 <button

@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -22,12 +23,26 @@ public class AccountService {
     private final AccountMemberRepository memberRepo;
     private final PasswordEncoder passwordEncoder;
 
+    private static final Pattern EMAIL_REGEX = Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
+
     @Transactional
     public AccountMember createAccountWithAdmin(String accountName, String accountDesc, String loginId,
-            String memberName, String rawPassword) {
+            String memberName, String email, String rawPassword) {
         Optional<AccountMember> existing = memberRepo.findByLoginId(loginId);
         if (existing.isPresent()) {
-            throw new IllegalArgumentException("loginId is already taken, please choose another!");
+            throw new IllegalArgumentException("LoginId is already taken, please choose another!");
+        }
+
+        existing = memberRepo.findByLoginIdOrEmailIgnoreCase(email);
+        if (existing.isPresent()) {
+            throw new IllegalArgumentException("Email already in use!");
+        }
+
+        if (email != null && !email.isBlank()) {
+            if (!EMAIL_REGEX.matcher(email).matches()) {
+                throw new IllegalArgumentException("Invalid email format");
+            }
+            email = email.toLowerCase();
         }
 
         Account account = new Account();
@@ -37,6 +52,7 @@ public class AccountService {
 
         AccountMember admin = new AccountMember();
         admin.setLoginId(loginId);
+        admin.setEmail(email);
         admin.setAccountId(account.getId());
         admin.setMemberName(memberName);
         admin.setPasswordHash(passwordEncoder.encode(rawPassword));

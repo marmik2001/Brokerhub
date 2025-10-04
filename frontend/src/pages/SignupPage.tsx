@@ -1,4 +1,3 @@
-// src/pages/SignupPage.tsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
@@ -22,6 +21,12 @@ const signupSchema = z
       .min(3, "Login ID must be at least 3 characters")
       .regex(/^[^\s]+$/, "Login ID cannot contain spaces"),
     memberName: z.string().min(2, "Member name must be at least 2 characters"),
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Invalid email format")
+      .optional(),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string(),
   })
@@ -41,6 +46,7 @@ const SignupPage: React.FC = () => {
     accountDesc: "",
     loginId: "",
     memberName: "",
+    email: "",
     password: "",
     confirmPassword: "",
   });
@@ -48,7 +54,7 @@ const SignupPage: React.FC = () => {
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof SignupForm, string>>
   >({});
-  const [formError, setFormError] = useState<string | null>(null); // NEW: form-level error
+  const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const handleChange =
@@ -56,7 +62,7 @@ const SignupPage: React.FC = () => {
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       setForm((s) => ({ ...s, [k]: e.target.value }));
       setFieldErrors((f) => ({ ...f, [k]: undefined }));
-      setFormError(null); // clear top-level error on change
+      setFormError(null);
     };
 
   const setFieldError = (field: keyof SignupForm, msg: string) => {
@@ -72,7 +78,6 @@ const SignupPage: React.FC = () => {
     setFieldErrors({});
     setFormError(null);
 
-    // client-side validation — collect and show all issues
     const parsed = signupSchema.safeParse(form);
     if (!parsed.success) {
       const zErrors: Partial<Record<keyof SignupForm, string>> = {};
@@ -89,6 +94,7 @@ const SignupPage: React.FC = () => {
       accountDesc: form.accountDesc || undefined,
       loginId: form.loginId,
       memberName: form.memberName,
+      email: form.email?.toLowerCase() || undefined, // NEW FIELD
       password: form.password,
     };
 
@@ -96,12 +102,8 @@ const SignupPage: React.FC = () => {
 
     try {
       await signupService(payload);
-      // auto-login
       await auth.login(form.loginId, form.password);
-      toast.success(
-        `Welcome, ${form.memberName || form.loginId}! Your account is ready.`
-      );
-
+      toast.success(`Welcome, ${form.memberName || form.loginId}!`);
       navigate("/");
     } catch (rawErr: any) {
       const { message, field } = parseApiError(rawErr);
@@ -113,6 +115,7 @@ const SignupPage: React.FC = () => {
             "accountDesc",
             "loginId",
             "memberName",
+            "email",
             "password",
             "confirmPassword",
           ] as (keyof SignupForm)[]
@@ -120,7 +123,6 @@ const SignupPage: React.FC = () => {
       ) {
         setFieldError(field as keyof SignupForm, message);
       } else {
-        // inline, top-of-form error for non-field errors
         setFormError(message || "Signup failed — try again.");
       }
       clearPasswordFields();
@@ -141,7 +143,6 @@ const SignupPage: React.FC = () => {
             unique.
           </p>
 
-          {/* Inline top-level error (no toasts) */}
           {formError && (
             <div
               role="alert"
@@ -151,27 +152,17 @@ const SignupPage: React.FC = () => {
             </div>
           )}
 
-          <form
-            onSubmit={onSubmit}
-            className="space-y-4"
-            aria-labelledby="signup-form"
-            noValidate
-          >
+          <form onSubmit={onSubmit} className="space-y-4" noValidate>
             <div>
-              <label
-                htmlFor="accountName"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label className="block text-sm font-medium text-gray-700">
                 Account name
               </label>
               <input
-                id="accountName"
                 value={form.accountName}
                 onChange={handleChange("accountName")}
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   fieldErrors.accountName ? "border-red-300" : "border-gray-300"
                 }`}
-                aria-invalid={!!fieldErrors.accountName}
                 required
               />
               {fieldErrors.accountName && (
@@ -182,14 +173,10 @@ const SignupPage: React.FC = () => {
             </div>
 
             <div>
-              <label
-                htmlFor="accountDesc"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label className="block text-sm font-medium text-gray-700">
                 Account description (optional)
               </label>
               <textarea
-                id="accountDesc"
                 value={form.accountDesc}
                 onChange={handleChange("accountDesc")}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -198,47 +185,34 @@ const SignupPage: React.FC = () => {
             </div>
 
             <div>
-              <label
-                htmlFor="loginId"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label className="block text-sm font-medium text-gray-700">
                 Login ID
               </label>
               <input
-                id="loginId"
                 value={form.loginId}
                 onChange={handleChange("loginId")}
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   fieldErrors.loginId ? "border-red-300" : "border-gray-300"
                 }`}
-                aria-invalid={!!fieldErrors.loginId}
-                aria-describedby={
-                  fieldErrors.loginId ? "loginId-error" : undefined
-                }
                 required
               />
               {fieldErrors.loginId && (
-                <p id="loginId-error" className="text-xs text-red-600 mt-1">
+                <p className="text-xs text-red-600 mt-1">
                   {fieldErrors.loginId}
                 </p>
               )}
             </div>
 
             <div>
-              <label
-                htmlFor="memberName"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label className="block text-sm font-medium text-gray-700">
                 Your name
               </label>
               <input
-                id="memberName"
                 value={form.memberName}
                 onChange={handleChange("memberName")}
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   fieldErrors.memberName ? "border-red-300" : "border-gray-300"
                 }`}
-                aria-invalid={!!fieldErrors.memberName}
                 required
               />
               {fieldErrors.memberName && (
@@ -249,21 +223,34 @@ const SignupPage: React.FC = () => {
             </div>
 
             <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label className="block text-sm font-medium text-gray-700">
+                Email
+              </label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={handleChange("email")}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  fieldErrors.email ? "border-red-300" : "border-gray-300"
+                }`}
+                placeholder="you@example.com"
+              />
+              {fieldErrors.email && (
+                <p className="text-xs text-red-600 mt-1">{fieldErrors.email}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
                 Password
               </label>
               <input
-                id="password"
                 type="password"
                 value={form.password}
                 onChange={handleChange("password")}
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   fieldErrors.password ? "border-red-300" : "border-gray-300"
                 }`}
-                aria-invalid={!!fieldErrors.password}
                 required
               />
               {fieldErrors.password && (
@@ -274,14 +261,10 @@ const SignupPage: React.FC = () => {
             </div>
 
             <div>
-              <label
-                htmlFor="confirmPassword"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label className="block text-sm font-medium text-gray-700">
                 Confirm password
               </label>
               <input
-                id="confirmPassword"
                 type="password"
                 value={form.confirmPassword}
                 onChange={handleChange("confirmPassword")}
@@ -290,7 +273,6 @@ const SignupPage: React.FC = () => {
                     ? "border-red-300"
                     : "border-gray-300"
                 }`}
-                aria-invalid={!!fieldErrors.confirmPassword}
                 required
               />
               {fieldErrors.confirmPassword && (
@@ -300,16 +282,13 @@ const SignupPage: React.FC = () => {
               )}
             </div>
 
-            <div>
-              <button
-                type="submit"
-                disabled={submitting}
-                aria-busy={submitting}
-                className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              >
-                {submitting ? "Creating account…" : "Sign up"}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              {submitting ? "Creating account…" : "Sign up"}
+            </button>
           </form>
 
           <p className="mt-4 text-sm text-gray-600">

@@ -34,6 +34,9 @@ public class AccountMember {
     @Column(columnDefinition = "jsonb", nullable = true)
     private String rules = "{}";
 
+    @Column(name = "email", unique = true)
+    private String email;
+
     public AccountMember() {
         this.id = UUID.randomUUID();
     }

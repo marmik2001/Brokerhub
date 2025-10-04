@@ -17,8 +17,8 @@ public class AuthService {
     private final AccountMemberRepository memberRepo;
     private final PasswordEncoder passwordEncoder;
 
-    public AccountMember authenticate(String loginId, String rawPassword) {
-        Optional<AccountMember> maybe = memberRepo.findByLoginId(loginId);
+    public AccountMember authenticate(String identifier, String rawPassword) {
+        Optional<AccountMember> maybe = memberRepo.findByLoginIdOrEmailIgnoreCase(identifier);
         if (maybe.isEmpty())
             return null;
         AccountMember m = maybe.get();
