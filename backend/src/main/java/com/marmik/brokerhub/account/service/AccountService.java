@@ -108,4 +108,29 @@ public class AccountService {
 
         return member;
     }
+
+    @Transactional
+    public AccountMember createAccountForUser(UUID userId, String accountName, String accountDesc) {
+        if (accountName == null || accountName.isBlank()) {
+            throw new IllegalArgumentException("Account name is required");
+        }
+
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        Account account = new Account();
+        account.setName(accountName);
+        account.setDescription(accountDesc);
+        accountRepo.save(account);
+
+        AccountMember admin = new AccountMember();
+        admin.setAccountId(account.getId());
+        admin.setUser(user);
+        admin.setRole("ADMIN");
+        admin.setRules("{}");
+        memberRepo.save(admin);
+
+        return admin;
+    }
+
 }

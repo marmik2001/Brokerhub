@@ -44,4 +44,25 @@ public class UserController {
 
         return ResponseEntity.ok(profileOpt.get());
     }
+
+    @PostMapping("/register")
+    public ResponseEntity<?> registerUser(@RequestBody Map<String, String> body) {
+        try {
+            String loginId = body.get("loginId");
+            String memberName = body.get("memberName");
+            String email = body.get("email");
+            String password = body.get("password");
+
+            var user = userService.registerUser(loginId, memberName, email, password);
+
+            return ResponseEntity.ok(Map.of(
+                    "id", user.getId(),
+                    "loginId", user.getLoginId(),
+                    "email", user.getEmail(),
+                    "name", user.getMemberName()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
 }

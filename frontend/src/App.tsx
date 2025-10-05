@@ -12,6 +12,7 @@ import AppLayout from "./components/layout/AppLayout";
 import SettingsLayout from "./components/layout/SettingsLayout";
 import SignupPage from "./pages/SignupPage";
 import SelectAccountPage from "./pages/SelectAccountPage";
+import CreateAccountPage from "./pages/CreateAccountPage";
 
 export default function App() {
   return (
@@ -29,6 +30,16 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <SelectAccountPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ---------- Create Account (Add Group) ---------- */}
+          <Route
+            path="/create-account"
+            element={
+              <ProtectedRoute>
+                <CreateAccountPage />
               </ProtectedRoute>
             }
           />

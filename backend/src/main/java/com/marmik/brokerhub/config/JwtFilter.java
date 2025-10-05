@@ -17,6 +17,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.Arrays;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
@@ -82,14 +83,8 @@ public class JwtFilter extends OncePerRequestFilter {
         if ("OPTIONS".equalsIgnoreCase(method))
             return true;
 
-        // endpoints that must be accessible without a token
-        if (path.startsWith("/api/auth")
-                || path.equals("/api/accounts/signup")
-                || path.startsWith("/public")
-                || path.startsWith("/static")) {
-            return true;
-        }
-
-        return false;
+        // skip filtering for public endpoints
+        return Arrays.stream(SecurityConstants.PUBLIC_ENDPOINTS)
+                .anyMatch(path::startsWith);
     }
 }

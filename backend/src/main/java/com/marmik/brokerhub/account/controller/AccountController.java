@@ -30,13 +30,7 @@ public class AccountController {
         this.accessValidator = accessValidator;
     }
 
-    public static record SignupRequest(
-            String accountName,
-            String accountDesc,
-            String loginId,
-            String memberName,
-            String email,
-            String password) {
+    public static record CreateAccountRequest(String accountName, String accountDesc) {
     }
 
     public static record AddMemberRequest(
@@ -47,21 +41,31 @@ public class AccountController {
             String role) {
     }
 
-    /** Public: create new account + admin user. */
-    @PostMapping("/signup")
-    public ResponseEntity<?> signup(@RequestBody SignupRequest req) {
+    /** Authenticated: create a new account for current user as ADMIN. */
+    @PostMapping
+    public ResponseEntity<?> createAccount(
+            @RequestBody CreateAccountRequest req,
+            @RequestHeader("Authorization") String authHeader) {
+        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
+            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
+        }
+
+        String token = authHeader.substring(7).trim();
+        String userIdStr = jwtUtil.getUserId(token).orElse(null);
+        if (userIdStr == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
+        }
+
         try {
-            AccountMember admin = accountService.createAccountWithAdmin(
+            UUID userId = UUID.fromString(userIdStr);
+            AccountMember admin = accountService.createAccountForUser(
+                    userId,
                     req.accountName(),
-                    req.accountDesc(),
-                    req.loginId(),
-                    req.memberName(),
-                    req.email(),
-                    req.password());
+                    req.accountDesc());
 
             return ResponseEntity.ok(Map.of(
-                    "memberId", admin.getId(),
                     "accountId", admin.getAccountId(),
+                    "name", req.accountName(),
                     "role", admin.getRole()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -86,7 +90,6 @@ public class AccountController {
         UUID userId = UUID.fromString(userIdStr);
         UUID accId = UUID.fromString(accountId);
 
-        // ✅ Use centralized validator instead of inline membership checks
         try {
             accessValidator.requireRole(userId, accId, "ADMIN");
         } catch (org.springframework.security.access.AccessDeniedException ex) {

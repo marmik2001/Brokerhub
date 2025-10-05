@@ -2,25 +2,16 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import * as z from "zod";
-import {
-  signup as signupService,
-  type SignupRequest,
-} from "../services/accountService";
-import { useAuth } from "../contexts/AuthContext";
+import { registerUser } from "../services/authService";
 import { parseApiError } from "../utils/apiError";
 
-// zod schema with refine for confirm password
 const signupSchema = z
   .object({
-    accountName: z
-      .string()
-      .min(2, "Account name must be at least 2 characters"),
-    accountDesc: z.string().optional(),
     loginId: z
       .string()
       .min(3, "Login ID must be at least 3 characters")
       .regex(/^[^\s]+$/, "Login ID cannot contain spaces"),
-    memberName: z.string().min(2, "Member name must be at least 2 characters"),
+    memberName: z.string().min(2, "Name must be at least 2 characters"),
     email: z
       .string()
       .trim()
@@ -39,11 +30,8 @@ type SignupForm = z.infer<typeof signupSchema>;
 
 const SignupPage: React.FC = () => {
   const navigate = useNavigate();
-  const auth = useAuth();
 
   const [form, setForm] = useState<SignupForm>({
-    accountName: "",
-    accountDesc: "",
     loginId: "",
     memberName: "",
     email: "",
@@ -51,81 +39,48 @@ const SignupPage: React.FC = () => {
     confirmPassword: "",
   });
 
-  const [fieldErrors, setFieldErrors] = useState<
+  const [errors, setErrors] = useState<
     Partial<Record<keyof SignupForm, string>>
   >({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const handleChange =
-    (k: keyof SignupForm) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    (k: keyof SignupForm) => (e: React.ChangeEvent<HTMLInputElement>) => {
       setForm((s) => ({ ...s, [k]: e.target.value }));
-      setFieldErrors((f) => ({ ...f, [k]: undefined }));
+      setErrors((f) => ({ ...f, [k]: undefined }));
       setFormError(null);
     };
 
-  const setFieldError = (field: keyof SignupForm, msg: string) => {
-    setFieldErrors((prev) => ({ ...prev, [field]: msg }));
-  };
-
-  const clearPasswordFields = () => {
-    setForm((s) => ({ ...s, password: "", confirmPassword: "" }));
-  };
-
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFieldErrors({});
+    setErrors({});
     setFormError(null);
 
     const parsed = signupSchema.safeParse(form);
     if (!parsed.success) {
-      const zErrors: Partial<Record<keyof SignupForm, string>> = {};
+      const fieldErrors: any = {};
       for (const issue of parsed.error.issues) {
-        const key = issue.path[0] as keyof SignupForm | undefined;
-        if (key) zErrors[key] = issue.message;
+        fieldErrors[issue.path[0]] = issue.message;
       }
-      setFieldErrors(zErrors);
+      setErrors(fieldErrors);
       return;
     }
 
-    const payload: SignupRequest = {
-      accountName: form.accountName,
-      accountDesc: form.accountDesc || undefined,
-      loginId: form.loginId,
-      memberName: form.memberName,
-      email: form.email?.toLowerCase() || undefined, // NEW FIELD
-      password: form.password,
-    };
-
     setSubmitting(true);
-
     try {
-      await signupService(payload);
-      await auth.login(form.loginId, form.password);
-      toast.success(`Welcome, ${form.memberName || form.loginId}!`);
-      navigate("/");
-    } catch (rawErr: any) {
-      const { message, field } = parseApiError(rawErr);
-      if (
-        field &&
-        (
-          [
-            "accountName",
-            "accountDesc",
-            "loginId",
-            "memberName",
-            "email",
-            "password",
-            "confirmPassword",
-          ] as (keyof SignupForm)[]
-        ).includes(field as keyof SignupForm)
-      ) {
-        setFieldError(field as keyof SignupForm, message);
-      } else {
-        setFormError(message || "Signup failed — try again.");
-      }
-      clearPasswordFields();
+      await registerUser({
+        loginId: form.loginId,
+        memberName: form.memberName,
+        email: form.email,
+        password: form.password,
+      });
+
+      toast.success("Account created successfully!");
+      navigate("/select-account");
+    } catch (err: any) {
+      const { message } = parseApiError(err);
+      setFormError(message || "Signup failed — try again.");
     } finally {
       setSubmitting(false);
     }
@@ -133,21 +88,16 @@ const SignupPage: React.FC = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-lg">
+      <div className="w-full max-w-md">
         <div className="bg-white rounded-lg shadow-sm border p-8">
-          <h1 className="text-2xl font-semibold text-gray-900 mb-4">
-            Create a BrokerHub account
-          </h1>
+          <h1 className="text-2xl font-semibold text-gray-900 mb-4">Sign Up</h1>
           <p className="text-sm text-gray-600 mb-6">
-            Create a family/group account and become the Admin. Login ID must be
-            unique.
+            Create your personal user account. You can create or join groups
+            after login.
           </p>
 
           {formError && (
-            <div
-              role="alert"
-              className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-            >
+            <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {formError}
             </div>
           )}
@@ -155,70 +105,31 @@ const SignupPage: React.FC = () => {
           <form onSubmit={onSubmit} className="space-y-4" noValidate>
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Account name
-              </label>
-              <input
-                value={form.accountName}
-                onChange={handleChange("accountName")}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  fieldErrors.accountName ? "border-red-300" : "border-gray-300"
-                }`}
-                required
-              />
-              {fieldErrors.accountName && (
-                <p className="text-xs text-red-600 mt-1">
-                  {fieldErrors.accountName}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Account description (optional)
-              </label>
-              <textarea
-                value={form.accountDesc}
-                onChange={handleChange("accountDesc")}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={2}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
                 Login ID
               </label>
               <input
                 value={form.loginId}
                 onChange={handleChange("loginId")}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  fieldErrors.loginId ? "border-red-300" : "border-gray-300"
-                }`}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 required
               />
-              {fieldErrors.loginId && (
-                <p className="text-xs text-red-600 mt-1">
-                  {fieldErrors.loginId}
-                </p>
+              {errors.loginId && (
+                <p className="text-xs text-red-600 mt-1">{errors.loginId}</p>
               )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Your name
+                Your Name
               </label>
               <input
                 value={form.memberName}
                 onChange={handleChange("memberName")}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  fieldErrors.memberName ? "border-red-300" : "border-gray-300"
-                }`}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 required
               />
-              {fieldErrors.memberName && (
-                <p className="text-xs text-red-600 mt-1">
-                  {fieldErrors.memberName}
-                </p>
+              {errors.memberName && (
+                <p className="text-xs text-red-600 mt-1">{errors.memberName}</p>
               )}
             </div>
 
@@ -230,13 +141,11 @@ const SignupPage: React.FC = () => {
                 type="email"
                 value={form.email}
                 onChange={handleChange("email")}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  fieldErrors.email ? "border-red-300" : "border-gray-300"
-                }`}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 placeholder="you@example.com"
               />
-              {fieldErrors.email && (
-                <p className="text-xs text-red-600 mt-1">{fieldErrors.email}</p>
+              {errors.email && (
+                <p className="text-xs text-red-600 mt-1">{errors.email}</p>
               )}
             </div>
 
@@ -248,36 +157,28 @@ const SignupPage: React.FC = () => {
                 type="password"
                 value={form.password}
                 onChange={handleChange("password")}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  fieldErrors.password ? "border-red-300" : "border-gray-300"
-                }`}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 required
               />
-              {fieldErrors.password && (
-                <p className="text-xs text-red-600 mt-1">
-                  {fieldErrors.password}
-                </p>
+              {errors.password && (
+                <p className="text-xs text-red-600 mt-1">{errors.password}</p>
               )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Confirm password
+                Confirm Password
               </label>
               <input
                 type="password"
                 value={form.confirmPassword}
                 onChange={handleChange("confirmPassword")}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  fieldErrors.confirmPassword
-                    ? "border-red-300"
-                    : "border-gray-300"
-                }`}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 required
               />
-              {fieldErrors.confirmPassword && (
+              {errors.confirmPassword && (
                 <p className="text-xs text-red-600 mt-1">
-                  {fieldErrors.confirmPassword}
+                  {errors.confirmPassword}
                 </p>
               )}
             </div>
@@ -287,12 +188,12 @@ const SignupPage: React.FC = () => {
               disabled={submitting}
               className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
-              {submitting ? "Creating account…" : "Sign up"}
+              {submitting ? "Creating account..." : "Sign Up"}
             </button>
           </form>
 
           <p className="mt-4 text-sm text-gray-600">
-            Already have an account?{" "}
+            Already registered?{" "}
             <button
               onClick={() => navigate("/login")}
               className="text-blue-600 hover:underline"

@@ -43,3 +43,28 @@ export async function changePassword(payload: ChangePasswordPayload) {
   const { data } = await api.put("/auth/change-password", payload);
   return data;
 }
+
+/**
+ * POST /api/user/register
+ * Creates a new user (without creating an account)
+ */
+export interface RegisterUserRequest {
+  loginId: string;
+  memberName: string;
+  email?: string;
+  password: string;
+}
+
+export interface RegisterUserResponse {
+  id: string;
+  loginId: string;
+  email?: string;
+  name: string;
+}
+
+export async function registerUser(
+  req: RegisterUserRequest
+): Promise<RegisterUserResponse> {
+  const { data } = await api.post<RegisterUserResponse>("/user/register", req);
+  return data;
+}

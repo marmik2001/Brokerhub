@@ -1,41 +1,32 @@
-export interface SignupRequest {
+import api from "../api";
+
+export interface CreateAccountRequest {
   accountName: string;
   accountDesc?: string;
-  loginId: string;
-  memberName: string;
-  email?: string;
-  password: string;
 }
 
-export interface SignupResponse {
-  memberId: string;
+export interface CreateAccountResponse {
   accountId: string;
+  name: string;
   role: "ADMIN" | "MEMBER";
 }
 
-async function postJson<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-
-  let parsed: any = null;
-  try {
-    parsed = await res.json();
-  } catch {}
-
-  if (!res.ok) {
-    const msg =
-      parsed?.error ||
-      parsed?.message ||
-      `Request failed with status ${res.status}`;
-    throw new Error(msg);
-  }
-
-  return parsed as T;
+/**
+ * POST /api/accounts
+ * Creates a new account for the authenticated user as ADMIN
+ */
+export async function createAccount(
+  req: CreateAccountRequest
+): Promise<CreateAccountResponse> {
+  const { data } = await api.post<CreateAccountResponse>("/accounts", req);
+  return data;
 }
 
-export async function signup(req: SignupRequest): Promise<SignupResponse> {
-  return postJson<SignupResponse>("/api/accounts/signup", req);
+/**
+ * GET /api/accounts
+ * Lists all accounts the authenticated user belongs to
+ */
+export async function listAccounts(): Promise<CreateAccountResponse[]> {
+  const { data } = await api.get<CreateAccountResponse[]>("/accounts");
+  return data;
 }

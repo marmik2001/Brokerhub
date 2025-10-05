@@ -4,7 +4,9 @@ import com.marmik.brokerhub.account.model.AccountMember;
 import com.marmik.brokerhub.account.model.User;
 import com.marmik.brokerhub.account.repository.AccountMemberRepository;
 import com.marmik.brokerhub.account.repository.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
@@ -13,10 +15,14 @@ public class UserService {
 
     private final UserRepository userRepo;
     private final AccountMemberRepository memberRepo;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepo, AccountMemberRepository memberRepo) {
+    public UserService(UserRepository userRepo,
+            AccountMemberRepository memberRepo,
+            PasswordEncoder passwordEncoder) {
         this.userRepo = userRepo;
         this.memberRepo = memberRepo;
+        this.passwordEncoder = passwordEncoder;
     }
 
     /**
@@ -40,5 +46,32 @@ public class UserService {
                 "role", m.getRole())).toList());
 
         return Optional.of(profile);
+    }
+
+    /**
+     * New: Register a new user (no account creation).
+     */
+    @Transactional
+    public User registerUser(String loginId, String memberName, String email, String rawPassword) {
+        if (loginId == null || loginId.isBlank())
+            throw new IllegalArgumentException("loginId is required");
+        if (memberName == null || memberName.isBlank())
+            throw new IllegalArgumentException("memberName is required");
+        if (rawPassword == null || rawPassword.length() < 6)
+            throw new IllegalArgumentException("Password must be at least 6 characters");
+
+        // Validate duplicates
+        if (email != null && userRepo.findByEmail(email).isPresent())
+            throw new IllegalArgumentException("Email already in use");
+        if (userRepo.findByLoginId(loginId).isPresent())
+            throw new IllegalArgumentException("Login ID already exists");
+
+        User user = new User();
+        user.setLoginId(loginId);
+        user.setEmail(email != null ? email.toLowerCase() : null);
+        user.setMemberName(memberName);
+        user.setPasswordHash(passwordEncoder.encode(rawPassword));
+
+        return userRepo.save(user);
     }
 }

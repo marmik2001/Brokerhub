@@ -14,6 +14,7 @@ interface AuthContextType {
   login: (identifier: string, password: string) => Promise<void>;
   logout: () => void;
   selectAccount: (accountId: string) => void;
+  addAccount: (account: AccountSummary) => void;
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
   isAuthenticated: boolean;
 }
@@ -36,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     null
   );
 
-  // Load persisted auth state on mount
+  // Load persisted state
   useEffect(() => {
     const stored = localStorage.getItem("brokerhub_auth");
     if (stored) {
@@ -52,9 +53,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
+  const persist = (data: any) => {
+    localStorage.setItem("brokerhub_auth", JSON.stringify(data));
+  };
+
   const login = async (identifier: string, password: string) => {
     const data = await loginService({ identifier, password });
-
     const firstAccount = data.accounts?.[0] || null;
     const authData = {
       token: data.token,
@@ -62,8 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       accounts: data.accounts,
       currentAccount: firstAccount,
     };
-
-    localStorage.setItem("brokerhub_auth", JSON.stringify(authData));
+    persist(authData);
     setUser(data.user);
     setToken(data.token);
     setAccounts(data.accounts);
@@ -82,8 +85,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const selected = accounts.find((a) => a.accountId === accountId) || null;
     if (!selected) return;
     const updated = { token, user, accounts, currentAccount: selected };
-    localStorage.setItem("brokerhub_auth", JSON.stringify(updated));
+    persist(updated);
     setCurrentAccount(selected);
+  };
+
+  const addAccount = (account: AccountSummary) => {
+    const updated = {
+      token,
+      user,
+      accounts: [...accounts, account],
+      currentAccount: account,
+    };
+    persist(updated);
+    setAccounts((prev) => [...prev, account]);
+    setCurrentAccount(account);
   };
 
   const handleChangePassword = async (
@@ -103,6 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         login,
         logout,
         selectAccount,
+        addAccount,
         changePassword: handleChangePassword,
         isAuthenticated: !!token,
       }}
