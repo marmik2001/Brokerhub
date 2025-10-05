@@ -1,25 +1,20 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-
-interface AccountSummary {
-  accountId: string;
-  role: "ADMIN" | "MEMBER";
-}
-
-interface AuthUser {
-  id: string;
-  loginId: string;
-  email?: string;
-  name: string;
-}
+import React, { createContext, useContext, useEffect, useState } from "react";
+import {
+  loginService,
+  changePassword,
+  type AuthUser,
+  type AccountSummary,
+} from "../services/authService";
 
 interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
   accounts: AccountSummary[];
-  activeAccount: AccountSummary | null;
+  currentAccount: AccountSummary | null;
   login: (identifier: string, password: string) => Promise<void>;
   logout: () => void;
   selectAccount: (accountId: string) => void;
+  changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -37,45 +32,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
-  const [activeAccount, setActiveAccount] = useState<AccountSummary | null>(
+  const [currentAccount, setCurrentAccount] = useState<AccountSummary | null>(
     null
   );
 
+  // Load persisted auth state on mount
   useEffect(() => {
     const stored = localStorage.getItem("brokerhub_auth");
     if (stored) {
-      const parsed = JSON.parse(stored);
-      setUser(parsed.user);
-      setToken(parsed.token);
-      setAccounts(parsed.accounts || []);
-      setActiveAccount(parsed.activeAccount || null);
+      try {
+        const parsed = JSON.parse(stored);
+        setUser(parsed.user || null);
+        setToken(parsed.token || null);
+        setAccounts(parsed.accounts || []);
+        setCurrentAccount(parsed.currentAccount || null);
+      } catch (err) {
+        console.error("Failed to parse stored auth", err);
+      }
     }
   }, []);
 
   const login = async (identifier: string, password: string) => {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identifier, password }),
-    });
-
-    if (!res.ok) throw new Error("Invalid credentials");
-    const data = await res.json();
+    const data = await loginService({ identifier, password });
 
     const firstAccount = data.accounts?.[0] || null;
-
     const authData = {
       token: data.token,
       user: data.user,
       accounts: data.accounts,
-      activeAccount: firstAccount,
+      currentAccount: firstAccount,
     };
 
     localStorage.setItem("brokerhub_auth", JSON.stringify(authData));
     setUser(data.user);
     setToken(data.token);
     setAccounts(data.accounts);
-    setActiveAccount(firstAccount);
+    setCurrentAccount(firstAccount);
   };
 
   const logout = () => {
@@ -83,21 +75,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setUser(null);
     setToken(null);
     setAccounts([]);
-    setActiveAccount(null);
+    setCurrentAccount(null);
   };
 
   const selectAccount = (accountId: string) => {
     const selected = accounts.find((a) => a.accountId === accountId) || null;
-    if (selected) {
-      const updated = {
-        token,
-        user,
-        accounts,
-        activeAccount: selected,
-      };
-      localStorage.setItem("brokerhub_auth", JSON.stringify(updated));
-      setActiveAccount(selected);
-    }
+    if (!selected) return;
+    const updated = { token, user, accounts, currentAccount: selected };
+    localStorage.setItem("brokerhub_auth", JSON.stringify(updated));
+    setCurrentAccount(selected);
+  };
+
+  const handleChangePassword = async (
+    oldPassword: string,
+    newPassword: string
+  ) => {
+    await changePassword({ oldPassword, newPassword });
   };
 
   return (
@@ -106,10 +99,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         user,
         token,
         accounts,
-        activeAccount,
+        currentAccount,
         login,
         logout,
         selectAccount,
+        changePassword: handleChangePassword,
         isAuthenticated: !!token,
       }}
     >

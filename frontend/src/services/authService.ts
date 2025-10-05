@@ -1,13 +1,26 @@
+import api from "../api";
+
 export interface LoginRequest {
   identifier: string;
   password: string;
 }
 
-export interface LoginResponse {
-  token: string;
-  memberId: string;
+export interface AuthUser {
+  id: string;
+  name: string;
+  email?: string;
+  loginId: string;
+}
+
+export interface AccountSummary {
   accountId: string;
   role: "ADMIN" | "MEMBER";
+}
+
+export interface LoginResponse {
+  token: string;
+  user: AuthUser;
+  accounts: AccountSummary[];
 }
 
 export interface ChangePasswordPayload {
@@ -16,56 +29,17 @@ export interface ChangePasswordPayload {
 }
 
 /**
- * Helper for POST JSON and handling error responses.
+ * POST /api/auth/login
  */
-async function postJson<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-
-  let parsed: any = null;
-  try {
-    parsed = await res.json();
-  } catch {}
-
-  if (!res.ok) {
-    const msg =
-      parsed?.error ||
-      parsed?.message ||
-      `Request failed with status ${res.status}`;
-    throw new Error(msg);
-  }
-
-  return parsed as T;
-}
-
 export async function loginService(req: LoginRequest): Promise<LoginResponse> {
-  return postJson<LoginResponse>("/api/auth/login", req);
+  const { data } = await api.post<LoginResponse>("/auth/login", req);
+  return data;
 }
 
-export const changePassword = async (payload: ChangePasswordPayload) => {
-  const token = localStorage.getItem("brokerhub_token");
-
-  if (!token) {
-    throw new Error("No token found. Please log in again.");
-  }
-
-  const res = await fetch("/api/auth/change-password", {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    throw new Error(data.error || "Failed to change password");
-  }
-
+/**
+ * PUT /api/auth/change-password
+ */
+export async function changePassword(payload: ChangePasswordPayload) {
+  const { data } = await api.put("/auth/change-password", payload);
   return data;
-};
+}
