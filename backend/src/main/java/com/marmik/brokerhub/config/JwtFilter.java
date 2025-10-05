@@ -36,27 +36,27 @@ public class JwtFilter extends OncePerRequestFilter {
             String header = request.getHeader(HttpHeaders.AUTHORIZATION);
 
             if (StringUtils.hasText(header) && header.toLowerCase().startsWith("bearer ")) {
-                String token = header.substring(6).trim();
+                // "Bearer " length is 7
+                String token = header.substring(7).trim();
 
                 if (jwtUtil.validateToken(token)) {
-                    Optional<String> memberIdOpt = jwtUtil.getMemberId(token);
-                    Optional<String> roleOpt = jwtUtil.getRole(token);
-                    Optional<String> accountIdOpt = jwtUtil.getAccountId(token);
+                    Optional<String> userIdOpt = jwtUtil.getUserId(token);
 
-                    if (memberIdOpt.isPresent() && roleOpt.isPresent()
+                    if (userIdOpt.isPresent()
                             && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-                        String memberId = memberIdOpt.get();
-                        String role = roleOpt.get();
+                        String userId = userIdOpt.get();
 
-                        var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
-                        var auth = new UsernamePasswordAuthenticationToken(memberId, null, authorities);
-                        accountIdOpt.ifPresent(aid -> request.setAttribute("accountId", aid));
+                        // Minimal authority: ROLE_USER. Per-account roles must be checked per-request.
+                        var authorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
+                        var auth = new UsernamePasswordAuthenticationToken(userId, null, authorities);
+
                         auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(auth);
                     }
-                } else
+                } else {
                     SecurityContextHolder.clearContext();
+                }
 
             }
         } catch (Exception ex) {

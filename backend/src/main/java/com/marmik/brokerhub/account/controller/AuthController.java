@@ -39,19 +39,11 @@ public class AuthController {
             return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
 
-        // Fetch all memberships for this user
+        // Fetch all memberships for this user (may be empty)
         List<AccountMember> memberships = memberRepo.findByUserId(user.getId());
-        if (memberships.isEmpty()) {
-            return ResponseEntity.status(403).body(Map.of("error", "No account memberships found"));
-        }
 
-        // Choose first account by default for now
-        AccountMember active = memberships.get(0);
-
-        String token = jwtUtil.generateToken(
-                user.getId().toString(),
-                active.getAccountId().toString(),
-                active.getRole());
+        // Generate user-scoped token (no accountId inside)
+        String token = jwtUtil.generateUserToken(user.getId().toString());
 
         return ResponseEntity.ok(Map.of(
                 "token", token,
@@ -68,8 +60,12 @@ public class AuthController {
     @PutMapping("/change-password")
     public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest req,
             @RequestHeader("Authorization") String authHeader) {
-        String token = authHeader.replace("Bearer ", "");
-        String userId = jwtUtil.getMemberId(token).orElse(null);
+        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
+            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
+        }
+
+        String token = authHeader.substring(7).trim();
+        String userId = jwtUtil.getUserId(token).orElse(null);
 
         if (userId == null) {
             return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));

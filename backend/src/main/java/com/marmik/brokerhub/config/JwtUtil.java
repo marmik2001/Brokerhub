@@ -10,6 +10,10 @@ import java.security.Key;
 import java.util.Date;
 import java.util.Optional;
 
+/**
+ * JWT utility class — user-based (no account info).
+ * sub = userId (UUID)
+ */
 @Component
 public class JwtUtil {
     private final Key key;
@@ -24,29 +28,19 @@ public class JwtUtil {
         this.expirationMs = expirationMs;
     }
 
-    /**
-     * Generate a JWT containing:
-     * - sub: memberId
-     * - claim "accountId"
-     * - claim "role"
-     */
-    public String generateToken(String memberId, String accountId, String role) {
+    /** Generate a user-scoped token (contains only sub=userId). */
+    public String generateUserToken(String userId) {
         Date now = new Date();
         Date exp = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
-                .setSubject(memberId)
-                .claim("accountId", accountId)
-                .claim("role", role)
+                .setSubject(userId)
                 .setIssuedAt(now)
                 .setExpiration(exp)
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    /**
-     * Parse claims from a token. Throws JwtException on invalid token.
-     */
     public Jws<Claims> parseClaimsJws(String token) throws JwtException {
         return Jwts.parserBuilder()
                 .setSigningKey(key)
@@ -54,9 +48,6 @@ public class JwtUtil {
                 .parseClaimsJws(token);
     }
 
-    /**
-     * Validate token signature & expiry. Returns true if valid.
-     */
     public boolean validateToken(String token) {
         try {
             parseClaimsJws(token);
@@ -66,31 +57,11 @@ public class JwtUtil {
         }
     }
 
-    /** Convenience getters that return Optional.empty() if token invalid. */
-    public Optional<String> getMemberId(String token) {
+    /** Return userId from JWT subject. */
+    public Optional<String> getUserId(String token) {
         try {
             Claims c = parseClaimsJws(token).getBody();
             return Optional.ofNullable(c.getSubject());
-        } catch (JwtException e) {
-            return Optional.empty();
-        }
-    }
-
-    public Optional<String> getAccountId(String token) {
-        try {
-            Claims c = parseClaimsJws(token).getBody();
-            Object v = c.get("accountId");
-            return Optional.ofNullable(v == null ? null : v.toString());
-        } catch (JwtException e) {
-            return Optional.empty();
-        }
-    }
-
-    public Optional<String> getRole(String token) {
-        try {
-            Claims c = parseClaimsJws(token).getBody();
-            Object v = c.get("role");
-            return Optional.ofNullable(v == null ? null : v.toString());
         } catch (JwtException e) {
             return Optional.empty();
         }
