@@ -11,9 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -23,59 +21,6 @@ public class AccountService {
     private final AccountMemberRepository memberRepo;
     private final UserRepository userRepo;
     private final PasswordEncoder passwordEncoder;
-
-    private static final Pattern EMAIL_REGEX = Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
-
-    /**
-     * Create a new account + global user + membership (ADMIN).
-     */
-    @Transactional
-    public AccountMember createAccountWithAdmin(
-            String accountName,
-            String accountDesc,
-            String loginId,
-            String memberName,
-            String email,
-            String rawPassword) {
-        // 1. Validate email
-        if (email != null && !email.isBlank()) {
-            if (!EMAIL_REGEX.matcher(email).matches()) {
-                throw new IllegalArgumentException("Invalid email format");
-            }
-            email = email.toLowerCase();
-        }
-
-        // 2. Check if user already exists
-        Optional<User> existingUser = userRepo.findByLoginIdOrEmailIgnoreCase(email != null ? email : loginId);
-
-        if (existingUser.isPresent()) {
-            throw new IllegalArgumentException("User already exists with same login ID or email");
-        }
-
-        // 3. Create new user
-        User user = new User();
-        user.setLoginId(loginId);
-        user.setEmail(email);
-        user.setMemberName(memberName);
-        user.setPasswordHash(passwordEncoder.encode(rawPassword));
-        userRepo.save(user);
-
-        // 4. Create account
-        Account account = new Account();
-        account.setName(accountName);
-        account.setDescription(accountDesc);
-        accountRepo.save(account);
-
-        // 5. Create membership (ADMIN)
-        AccountMember admin = new AccountMember();
-        admin.setAccountId(account.getId());
-        admin.setUser(user);
-        admin.setRole("ADMIN");
-        admin.setRules("{}");
-        memberRepo.save(admin);
-
-        return admin;
-    }
 
     /**
      * Add member to an existing account.
