@@ -7,10 +7,10 @@ import com.marmik.brokerhub.account.repository.AccountMemberRepository;
 import com.marmik.brokerhub.account.repository.AccountRepository;
 import com.marmik.brokerhub.account.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -20,38 +20,34 @@ public class AccountService {
     private final AccountRepository accountRepo;
     private final AccountMemberRepository memberRepo;
     private final UserRepository userRepo;
-    private final PasswordEncoder passwordEncoder;
 
     /**
      * Add member to an existing account.
-     * If user exists, link them. If not, create new user.
      */
     @Transactional
     public AccountMember addMember(
             String accountId,
             String loginId,
-            String memberName,
-            String email,
-            String rawPassword,
-            String role) {
-        User user = userRepo.findByLoginIdOrEmailIgnoreCase(email != null ? email : loginId)
-                .orElseGet(() -> {
-                    User newUser = new User();
-                    newUser.setLoginId(loginId);
-                    newUser.setEmail(email != null ? email.toLowerCase() : null);
-                    newUser.setMemberName(memberName);
-                    newUser.setPasswordHash(passwordEncoder.encode(rawPassword));
-                    return userRepo.save(newUser);
-                });
+            String email) {
 
+        // Find user by loginId or email (case insensitive)
+        Optional<User> userOpt = userRepo.findByLoginIdOrEmailIgnoreCase(email != null ? email : loginId);
+
+        // If user not found -> throw exception
+        if (userOpt.isEmpty()) {
+            throw new IllegalArgumentException("User does not exist. Please ask them to register first.");
+        }
+
+        User user = userOpt.get();
+
+        // Create AccountMember entry
         AccountMember member = new AccountMember();
         member.setAccountId(UUID.fromString(accountId));
         member.setUser(user);
-        member.setRole(role);
+        member.setRole("MEMBER");
         member.setRules("{}");
-        memberRepo.save(member);
 
-        return member;
+        return memberRepo.save(member);
     }
 
     @Transactional

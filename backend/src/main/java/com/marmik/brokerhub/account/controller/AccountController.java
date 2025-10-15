@@ -33,12 +33,9 @@ public class AccountController {
     public static record CreateAccountRequest(String accountName, String accountDesc) {
     }
 
-    public static record AddMemberRequest(
+    public record AddMemberRequest(
             String loginId,
-            String memberName,
-            String email,
-            String password,
-            String role) {
+            String email) {
     }
 
     /** Authenticated: create a new account for current user as ADMIN. */
@@ -74,7 +71,8 @@ public class AccountController {
 
     /** Authenticated: add member to an account (ADMIN only). */
     @PostMapping("/{accountId}/members")
-    public ResponseEntity<?> addMember(@PathVariable String accountId,
+    public ResponseEntity<?> addMember(
+            @PathVariable String accountId,
             @RequestBody AddMemberRequest req,
             @RequestHeader("Authorization") String authHeader) {
         if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
@@ -100,10 +98,7 @@ public class AccountController {
             AccountMember member = accountService.addMember(
                     accountId,
                     req.loginId(),
-                    req.memberName(),
-                    req.email(),
-                    req.password(),
-                    req.role());
+                    req.email());
             return ResponseEntity.ok(Map.of(
                     "memberId", member.getId(),
                     "accountId", member.getAccountId(),
