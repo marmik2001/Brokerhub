@@ -17,6 +17,7 @@ interface AuthContextType {
   addAccount: (account: AccountSummary) => void;
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
   isAuthenticated: boolean;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,7 +38,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     null
   );
 
-  // Load persisted state
   useEffect(() => {
     const stored = localStorage.getItem("brokerhub_auth");
     if (stored) {
@@ -108,6 +108,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     await changePassword({ oldPassword, newPassword });
   };
 
+  const isAdmin = currentAccount?.role === "ADMIN";
+
   return (
     <AuthContext.Provider
       value={{
@@ -121,6 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         addAccount,
         changePassword: handleChangePassword,
         isAuthenticated: !!token,
+        isAdmin,
       }}
     >
       {children}
