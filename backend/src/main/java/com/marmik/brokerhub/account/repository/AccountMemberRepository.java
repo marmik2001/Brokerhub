@@ -21,4 +21,7 @@ public interface AccountMemberRepository extends JpaRepository<AccountMember, UU
 
     @Query("SELECT am FROM AccountMember am WHERE am.accountId = :accountId AND am.user.id = :userId")
     Optional<AccountMember> findMembership(UUID accountId, UUID userId);
+
+    // Fetch membership by its id and account id (safety check)
+    Optional<AccountMember> findByIdAndAccountId(UUID id, UUID accountId);
 }

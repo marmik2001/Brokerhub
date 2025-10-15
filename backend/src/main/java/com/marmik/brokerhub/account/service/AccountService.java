@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,6 +24,8 @@ public class AccountService {
 
     /**
      * Add member to an existing account.
+     * If user not found => IllegalArgumentException("User does not exist...")
+     * If membership already exists => IllegalArgumentException("Already a member")
      */
     @Transactional
     public AccountMember addMember(
@@ -39,10 +42,16 @@ public class AccountService {
         }
 
         User user = userOpt.get();
+        UUID accUuid = UUID.fromString(accountId);
+
+        // Check existing membership
+        if (memberRepo.findByUserIdAndAccountId(user.getId(), accUuid).isPresent()) {
+            throw new IllegalArgumentException("User is already a member of this account");
+        }
 
         // Create AccountMember entry
         AccountMember member = new AccountMember();
-        member.setAccountId(UUID.fromString(accountId));
+        member.setAccountId(accUuid);
         member.setUser(user);
         member.setRole("MEMBER");
         member.setRules("{}");
@@ -50,6 +59,9 @@ public class AccountService {
         return memberRepo.save(member);
     }
 
+    /**
+     * Create a new account and link an existing user as ADMIN.
+     */
     @Transactional
     public AccountMember createAccountForUser(UUID userId, String accountName, String accountDesc) {
         if (accountName == null || accountName.isBlank()) {
@@ -74,4 +86,40 @@ public class AccountService {
         return admin;
     }
 
+    /**
+     * List all AccountMember entries for the account.
+     */
+    @Transactional(readOnly = true)
+    public List<AccountMember> listMembers(UUID accountId) {
+        return memberRepo.findByAccountId(accountId);
+    }
+
+    /**
+     * Remove a member from an account.
+     * Throws IllegalArgumentException if member not found for the account.
+     */
+    @Transactional
+    public void removeMember(UUID accountId, UUID memberId) {
+        AccountMember member = memberRepo.findByIdAndAccountId(memberId, accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Member not found for this account"));
+
+        memberRepo.delete(member);
+    }
+
+    /**
+     * Update role for a member in the account.
+     * Throws IllegalArgumentException if member not found or invalid role.
+     */
+    @Transactional
+    public AccountMember updateMemberRole(UUID accountId, UUID memberId, String role) {
+        if (role == null || !(role.equalsIgnoreCase("ADMIN") || role.equalsIgnoreCase("MEMBER"))) {
+            throw new IllegalArgumentException("Invalid role");
+        }
+
+        AccountMember member = memberRepo.findByIdAndAccountId(memberId, accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Member not found for this account"));
+
+        member.setRole(role.toUpperCase());
+        return memberRepo.save(member);
+    }
 }

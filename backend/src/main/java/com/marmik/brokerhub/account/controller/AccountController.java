@@ -38,6 +38,9 @@ public class AccountController {
             String email) {
     }
 
+    public static record RoleUpdateRequest(String role) {
+    }
+
     /** Authenticated: create a new account for current user as ADMIN. */
     @PostMapping
     public ResponseEntity<?> createAccount(
@@ -67,6 +70,41 @@ public class AccountController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    /** Authenticated: list all members for the account (ADMIN only). */
+    @GetMapping("/{accountId}/members")
+    public ResponseEntity<?> listMembers(@PathVariable String accountId,
+            @RequestHeader("Authorization") String authHeader) {
+
+        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
+            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
+        }
+        String token = authHeader.substring(7).trim();
+        String userIdStr = jwtUtil.getUserId(token).orElse(null);
+        if (userIdStr == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
+        }
+
+        UUID userId = UUID.fromString(userIdStr);
+        UUID accId = UUID.fromString(accountId);
+
+        try {
+            accessValidator.requireRole(userId, accId, "ADMIN");
+        } catch (org.springframework.security.access.AccessDeniedException ex) {
+            return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
+        }
+
+        List<AccountMember> members = accountService.listMembers(accId);
+
+        var payload = members.stream().map(m -> Map.of(
+                "memberId", m.getId(),
+                "loginId", m.getUser().getLoginId(),
+                "email", m.getUser().getEmail(),
+                "memberName", m.getUser().getMemberName(),
+                "role", m.getRole())).collect(Collectors.toList());
+
+        return ResponseEntity.ok(payload);
     }
 
     /** Authenticated: add member to an account (ADMIN only). */
@@ -102,9 +140,100 @@ public class AccountController {
             return ResponseEntity.ok(Map.of(
                     "memberId", member.getId(),
                     "accountId", member.getAccountId(),
-                    "role", member.getRole()));
+                    "role", member.getRole(),
+                    "loginId", member.getUser().getLoginId(),
+                    "email", member.getUser().getEmail(),
+                    "memberName", member.getUser().getMemberName()));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            String msg = e.getMessage();
+            if (msg != null && msg.toLowerCase().contains("already")) {
+                return ResponseEntity.status(409).body(Map.of("error", msg));
+            }
+            return ResponseEntity.badRequest().body(Map.of("error", msg));
+        }
+    }
+
+    /** Authenticated: update a member's role (ADMIN only). */
+    @PatchMapping("/{accountId}/members/{memberId}/role")
+    public ResponseEntity<?> updateMemberRole(@PathVariable String accountId,
+            @PathVariable String memberId,
+            @RequestBody RoleUpdateRequest body,
+            @RequestHeader("Authorization") String authHeader) {
+        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
+            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
+        }
+        String token = authHeader.substring(7).trim();
+        String userIdStr = jwtUtil.getUserId(token).orElse(null);
+        if (userIdStr == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
+        }
+
+        UUID userId = UUID.fromString(userIdStr);
+        UUID accId = UUID.fromString(accountId);
+        UUID memId = UUID.fromString(memberId);
+
+        try {
+            accessValidator.requireRole(userId, accId, "ADMIN");
+        } catch (org.springframework.security.access.AccessDeniedException ex) {
+            return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
+        }
+
+        try {
+            // safety: prevent admin from demoting themselves
+            Optional<AccountMember> currentMembership = memberRepo.findByUserIdAndAccountId(userId, accId);
+            if (currentMembership.isPresent() && currentMembership.get().getId().equals(memId)) {
+                // attempting to update own role
+                if (!"ADMIN".equalsIgnoreCase(body.role())) {
+                    return ResponseEntity.status(409).body(Map.of("error", "Cannot demote yourself"));
+                }
+                // else setting own role to ADMIN is no-op
+            }
+
+            AccountMember updated = accountService.updateMemberRole(accId, memId, body.role());
+            return ResponseEntity.ok(Map.of(
+                    "memberId", updated.getId(),
+                    "accountId", updated.getAccountId(),
+                    "role", updated.getRole()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /** Authenticated: remove member from account (ADMIN only). */
+    @DeleteMapping("/{accountId}/members/{memberId}")
+    public ResponseEntity<?> removeMember(@PathVariable String accountId,
+            @PathVariable String memberId,
+            @RequestHeader("Authorization") String authHeader) {
+        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
+            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
+        }
+        String token = authHeader.substring(7).trim();
+        String userIdStr = jwtUtil.getUserId(token).orElse(null);
+        if (userIdStr == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
+        }
+
+        UUID userId = UUID.fromString(userIdStr);
+        UUID accId = UUID.fromString(accountId);
+        UUID memId = UUID.fromString(memberId);
+
+        try {
+            accessValidator.requireRole(userId, accId, "ADMIN");
+        } catch (org.springframework.security.access.AccessDeniedException ex) {
+            return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
+        }
+
+        try {
+            // prevent admin removing themselves
+            Optional<AccountMember> currentMembership = memberRepo.findByUserIdAndAccountId(userId, accId);
+            if (currentMembership.isPresent() && currentMembership.get().getId().equals(memId)) {
+                return ResponseEntity.status(409).body(Map.of("error", "Cannot remove yourself from the account"));
+            }
+
+            accountService.removeMember(accId, memId);
+            return ResponseEntity.ok(Map.of("message", "Member removed"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
         }
     }
 
