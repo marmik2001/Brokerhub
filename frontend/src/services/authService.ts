@@ -8,7 +8,7 @@ export interface LoginRequest {
 export interface AuthUser {
   id: string;
   name: string;
-  email?: string;
+  email: string;
   loginId: string;
 }
 

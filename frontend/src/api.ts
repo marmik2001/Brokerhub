@@ -10,17 +10,14 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-// Attach Authorization + X-Account-Id if stored
+// Attach Authorization
 api.interceptors.request.use((config) => {
   try {
     const stored = localStorage.getItem("brokerhub_auth");
     if (stored) {
-      const { token, activeAccount } = JSON.parse(stored);
+      const { token } = JSON.parse(stored);
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-      }
-      if (activeAccount?.accountId) {
-        config.headers["X-Account-Id"] = activeAccount.accountId;
       }
     }
   } catch (err) {

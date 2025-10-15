@@ -1,6 +1,5 @@
 import React from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "../../contexts/AuthContext";
 import { User, Settings as Gear, Shield, Users } from "lucide-react";
 
 const linkClasses = ({ isActive }: { isActive: boolean }) =>
@@ -12,7 +11,6 @@ const linkClasses = ({ isActive }: { isActive: boolean }) =>
   ].join(" ");
 
 const SettingsLayout: React.FC = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -20,9 +18,7 @@ const SettingsLayout: React.FC = () => {
     { value: "profile", label: "Profile" },
     { value: "broker", label: "Broker Access" },
     { value: "privacy", label: "Privacy" },
-    ...(user?.role === "ADMIN"
-      ? [{ value: "group", label: "Group Management" }]
-      : []),
+    { value: "group", label: "Group Management" },
   ];
 
   const current =
@@ -73,20 +69,18 @@ const SettingsLayout: React.FC = () => {
               )}
             </NavLink>
 
-            {user?.role === "ADMIN" && (
-              <NavLink to="group" className={linkClasses}>
-                {({ isActive }) => (
-                  <>
-                    <Users
-                      className={`w-4 h-4 ${
-                        isActive ? "text-blue-700" : "text-gray-500"
-                      }`}
-                    />
-                    Group Management
-                  </>
-                )}
-              </NavLink>
-            )}
+            <NavLink to="group" className={linkClasses}>
+              {({ isActive }) => (
+                <>
+                  <Users
+                    className={`w-4 h-4 ${
+                      isActive ? "text-blue-700" : "text-gray-500"
+                    }`}
+                  />
+                  Group Management
+                </>
+              )}
+            </NavLink>
           </nav>
         </aside>
 
