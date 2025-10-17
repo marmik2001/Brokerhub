@@ -1,6 +1,7 @@
 import React from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { User, Settings as Gear, Shield, Users } from "lucide-react";
+import { useAuth } from "../../contexts/AuthContext";
 
 const linkClasses = ({ isActive }: { isActive: boolean }) =>
   [
@@ -13,14 +14,22 @@ const linkClasses = ({ isActive }: { isActive: boolean }) =>
 const SettingsLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAdmin } = useAuth();
 
-  const options = [
+  // Base options; "group" will be conditionally included below
+  const baseOptions = [
     { value: "profile", label: "Profile" },
     { value: "broker", label: "Broker Access" },
     { value: "privacy", label: "Privacy" },
     { value: "group", label: "Group Management" },
   ];
 
+  // Filter options for non-admin users (hide Group Management)
+  const options = isAdmin
+    ? baseOptions
+    : baseOptions.filter((o) => o.value !== "group");
+
+  // If route contains a segment that matches an available option, pick it; otherwise fall back to first
   const current =
     options.find((opt) => location.pathname.includes(opt.value)) || options[0];
 
@@ -69,18 +78,21 @@ const SettingsLayout: React.FC = () => {
               )}
             </NavLink>
 
-            <NavLink to="group" className={linkClasses}>
-              {({ isActive }) => (
-                <>
-                  <Users
-                    className={`w-4 h-4 ${
-                      isActive ? "text-blue-700" : "text-gray-500"
-                    }`}
-                  />
-                  Group Management
-                </>
-              )}
-            </NavLink>
+            {/* Conditionally render Group Management for admins only */}
+            {isAdmin && (
+              <NavLink to="group" className={linkClasses}>
+                {({ isActive }) => (
+                  <>
+                    <Users
+                      className={`w-4 h-4 ${
+                        isActive ? "text-blue-700" : "text-gray-500"
+                      }`}
+                    />
+                    Group Management
+                  </>
+                )}
+              </NavLink>
+            )}
           </nav>
         </aside>
 

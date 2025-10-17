@@ -11,20 +11,19 @@ import { toast } from "react-hot-toast";
 import DataTable from "../../components/DataTable";
 
 const GroupPage: React.FC = () => {
-  const { currentAccount, isAdmin } = useAuth();
+  const { currentAccount, isAdmin, user } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [loginIdOrEmail, setLoginIdOrEmail] = useState("");
 
   useEffect(() => {
-    if (!currentAccount) return;
-    loadMembers();
+    if (currentAccount) loadMembers();
   }, [currentAccount]);
 
   const loadMembers = async () => {
+    if (!currentAccount) return;
+    setLoading(true);
     try {
-      if (!currentAccount) return;
-      setLoading(true);
       const data = await getMembers(currentAccount.accountId);
       setMembers(data);
     } catch {
@@ -59,20 +58,24 @@ const GroupPage: React.FC = () => {
       await updateMemberRole(currentAccount.accountId, memberId, newRole);
       toast.success("Role updated");
       loadMembers();
-    } catch {
-      toast.error("Failed to update role");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || "Failed to update role");
     }
   };
 
-  const handleRemove = async (memberId: string) => {
+  const handleRemove = async (memberId: string, memberLoginId: string) => {
     if (!currentAccount) return;
+    if (memberLoginId === user?.loginId) {
+      toast.error("You cannot remove yourself from this account");
+      return;
+    }
     if (!confirm("Remove this member?")) return;
     try {
       await removeMember(currentAccount.accountId, memberId);
       toast.success("Member removed");
       loadMembers();
-    } catch {
-      toast.error("Failed to remove member");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || "Failed to remove member");
     }
   };
 
@@ -124,7 +127,7 @@ const GroupPage: React.FC = () => {
                       )
                     }
                     className="border border-gray-300 rounded px-2 py-1"
-                    disabled={m.role === "ADMIN" && m.loginId === "self"}
+                    disabled={m.loginId === user?.loginId}
                   >
                     <option value="ADMIN">ADMIN</option>
                     <option value="MEMBER">MEMBER</option>
@@ -139,8 +142,9 @@ const GroupPage: React.FC = () => {
                     header: "Actions",
                     accessor: (m: Member) => (
                       <button
-                        onClick={() => handleRemove(m.memberId)}
-                        className="text-red-600 hover:underline"
+                        onClick={() => handleRemove(m.memberId, m.loginId)}
+                        disabled={m.loginId === user?.loginId}
+                        className="text-red-600 hover:underline disabled:opacity-50"
                       >
                         Remove
                       </button>
