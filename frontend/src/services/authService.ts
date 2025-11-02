@@ -12,9 +12,14 @@ export interface AuthUser {
   loginId: string;
 }
 
+/**
+ * AccountSummary now optionally includes accountMemberId
+ * so we can store the membership UUID for per-user operations like Broker Credentials.
+ */
 export interface AccountSummary {
   accountId: string;
   role: "ADMIN" | "MEMBER";
+  accountMemberId?: string;
 }
 
 export interface LoginResponse {

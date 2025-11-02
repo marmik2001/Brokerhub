@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import api from "../api";
 import {
   loginService,
   changePassword,
@@ -81,12 +82,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setCurrentAccount(null);
   };
 
+  /**
+   * Select an account by accountId.
+   *
+   * Behavior:
+   *  - Immediately persist the selection (without accountMemberId).
+   *  - Fire a background request GET /api/accounts/{accountId}/membership to fetch the
+   *    current user's membership id (accountMemberId). On success, update persisted state
+   *    and `currentAccount` to include accountMemberId so downstream services can use it.
+   *
+   * This keeps the select-account call synchronous (no API-await required by callers),
+   * while ensuring membership-id is resolved shortly after selection.
+   */
   const selectAccount = (accountId: string) => {
     const selected = accounts.find((a) => a.accountId === accountId) || null;
     if (!selected) return;
+
     const updated = { token, user, accounts, currentAccount: selected };
     persist(updated);
     setCurrentAccount(selected);
+
+    // Background fetch membership for the selected account and update persisted state.
+    (async () => {
+      try {
+        const resp = await api.get(`/accounts/${accountId}/membership`);
+        const data = resp.data as {
+          accountMemberId: string;
+          accountId: string;
+          role: string;
+        };
+
+        // merge accountMemberId into selected and into accounts list
+        const withMember: AccountSummary = {
+          ...selected,
+          accountMemberId: data.accountMemberId,
+          role: data.role as "ADMIN" | "MEMBER",
+        };
+
+        // update accounts array: replace the matching account with enriched object
+        const newAccounts = accounts.map((a) =>
+          a.accountId === accountId ? withMember : a
+        );
+
+        const persistent = {
+          token,
+          user,
+          accounts: newAccounts,
+          currentAccount: withMember,
+        };
+
+        persist(persistent);
+        setAccounts(newAccounts);
+        setCurrentAccount(withMember);
+      } catch (err) {
+        // fail silently but log — selection remains usable, but accountMemberId won't be present
+        console.error("Failed to fetch membership for account", accountId, err);
+      }
+    })();
   };
 
   const addAccount = (account: AccountSummary) => {

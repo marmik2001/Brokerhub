@@ -257,4 +257,34 @@ public class AccountController {
                 "accountId", m.getAccountId(),
                 "role", m.getRole())).collect(Collectors.toList()));
     }
+
+    @GetMapping("/{accountId}/membership")
+    public ResponseEntity<?> getMyMembership(@PathVariable String accountId,
+            @RequestHeader("Authorization") String authHeader) {
+        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
+            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
+        }
+
+        String raw = authHeader.substring(7).trim();
+        String userIdStr = jwtUtil.getUserId(raw).orElse(null);
+        if (userIdStr == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
+        }
+
+        UUID userId;
+        UUID accId;
+        try {
+            userId = UUID.fromString(userIdStr);
+            accId = UUID.fromString(accountId);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid UUID"));
+        }
+
+        return memberRepo.findByUserIdAndAccountId(userId, accId)
+                .map(am -> ResponseEntity.ok(Map.of(
+                        "accountMemberId", am.getId(),
+                        "accountId", am.getAccountId(),
+                        "role", am.getRole())))
+                .orElseGet(() -> ResponseEntity.status(404).body(Map.of("error", "membership not found")));
+    }
 }
