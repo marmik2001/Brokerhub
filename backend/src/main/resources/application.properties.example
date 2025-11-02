@@ -19,8 +19,11 @@ spring.flyway.enabled=true
 spring.flyway.locations=classpath:db/migration
 
 # JWT secret
-jwt.secret=
-jwt.expiration-ms=
+jwt.secret=<>
+jwt.expiration-ms=<>
+
+# Broker credentials master key
+app.security.master-key-base64=<>
 
 # External API keys
 kite.api.key=<>
