@@ -1,10 +1,10 @@
-package com.marmik.brokerhub.account.controller;
+package com.marmik.brokerhub.controller;
 
-import com.marmik.brokerhub.account.model.AccountMember;
-import com.marmik.brokerhub.account.repository.AccountMemberRepository;
-import com.marmik.brokerhub.account.service.AccountService;
+import com.marmik.brokerhub.model.AccountMember;
+import com.marmik.brokerhub.repository.AccountMemberRepository;
 import com.marmik.brokerhub.security.JwtUtil;
-import com.marmik.brokerhub.account.service.AccountAccessValidator;
+import com.marmik.brokerhub.service.AccountAccessValidator;
+import com.marmik.brokerhub.service.AccountService;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

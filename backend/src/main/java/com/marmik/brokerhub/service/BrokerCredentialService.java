@@ -1,10 +1,10 @@
-package com.marmik.brokerhub.account.service;
+package com.marmik.brokerhub.service;
 
-import com.marmik.brokerhub.account.model.BrokerCredential;
-import com.marmik.brokerhub.account.model.AccountMember;
-import com.marmik.brokerhub.account.repository.BrokerCredentialRepository;
+import com.marmik.brokerhub.model.AccountMember;
+import com.marmik.brokerhub.model.BrokerCredential;
+import com.marmik.brokerhub.repository.AccountMemberRepository;
+import com.marmik.brokerhub.repository.BrokerCredentialRepository;
 import com.marmik.brokerhub.security.EnvelopeEncryptionService;
-import com.marmik.brokerhub.account.repository.AccountMemberRepository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

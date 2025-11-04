@@ -1,7 +1,8 @@
-package com.marmik.brokerhub.account.repository;
+package com.marmik.brokerhub.repository;
 
-import com.marmik.brokerhub.account.model.BrokerCredential;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.marmik.brokerhub.model.BrokerCredential;
 
 import java.util.List;
 import java.util.UUID;

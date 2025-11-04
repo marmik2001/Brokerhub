@@ -1,7 +1,8 @@
-package com.marmik.brokerhub.account.service;
+package com.marmik.brokerhub.service;
 
-import com.marmik.brokerhub.account.model.User;
-import com.marmik.brokerhub.account.repository.UserRepository;
+import com.marmik.brokerhub.model.User;
+import com.marmik.brokerhub.repository.UserRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;

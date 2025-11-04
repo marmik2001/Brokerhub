@@ -1,7 +1,7 @@
-package com.marmik.brokerhub.account.controller;
+package com.marmik.brokerhub.controller;
 
-import com.marmik.brokerhub.account.service.UserService;
 import com.marmik.brokerhub.security.JwtUtil;
+import com.marmik.brokerhub.service.UserService;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

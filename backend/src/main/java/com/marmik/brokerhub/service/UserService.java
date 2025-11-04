@@ -1,9 +1,10 @@
-package com.marmik.brokerhub.account.service;
+package com.marmik.brokerhub.service;
 
-import com.marmik.brokerhub.account.model.AccountMember;
-import com.marmik.brokerhub.account.model.User;
-import com.marmik.brokerhub.account.repository.AccountMemberRepository;
-import com.marmik.brokerhub.account.repository.UserRepository;
+import com.marmik.brokerhub.model.AccountMember;
+import com.marmik.brokerhub.model.User;
+import com.marmik.brokerhub.repository.AccountMemberRepository;
+import com.marmik.brokerhub.repository.UserRepository;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

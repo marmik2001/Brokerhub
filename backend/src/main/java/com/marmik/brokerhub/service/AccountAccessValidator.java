@@ -1,7 +1,8 @@
-package com.marmik.brokerhub.account.service;
+package com.marmik.brokerhub.service;
 
-import com.marmik.brokerhub.account.model.AccountMember;
-import com.marmik.brokerhub.account.repository.AccountMemberRepository;
+import com.marmik.brokerhub.model.AccountMember;
+import com.marmik.brokerhub.repository.AccountMemberRepository;
+
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 

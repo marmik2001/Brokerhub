@@ -1,4 +1,4 @@
-package com.marmik.brokerhub.account.model;
+package com.marmik.brokerhub.model;
 
 import jakarta.persistence.*;
 import lombok.Data;

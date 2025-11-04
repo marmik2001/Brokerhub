@@ -1,9 +1,9 @@
-package com.marmik.brokerhub.account.controller;
+package com.marmik.brokerhub.controller;
 
-import com.marmik.brokerhub.account.model.BrokerCredential;
-import com.marmik.brokerhub.account.repository.AccountMemberRepository;
-import com.marmik.brokerhub.account.service.BrokerCredentialService;
+import com.marmik.brokerhub.model.BrokerCredential;
+import com.marmik.brokerhub.repository.AccountMemberRepository;
 import com.marmik.brokerhub.security.JwtUtil;
+import com.marmik.brokerhub.service.BrokerCredentialService;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
