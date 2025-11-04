@@ -1,4 +1,4 @@
-package com.marmik.brokerhub.config;
+package com.marmik.brokerhub.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

@@ -1,4 +1,4 @@
-package com.marmik.brokerhub.config;
+package com.marmik.brokerhub.security;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;

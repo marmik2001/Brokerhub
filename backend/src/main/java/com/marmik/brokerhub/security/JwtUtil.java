@@ -1,4 +1,4 @@
-package com.marmik.brokerhub.config;
+package com.marmik.brokerhub.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;

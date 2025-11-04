@@ -1,4 +1,4 @@
-package com.marmik.brokerhub.config;
+package com.marmik.brokerhub.security;
 
 public final class SecurityConstants {
 
