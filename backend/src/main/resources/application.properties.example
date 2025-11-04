@@ -25,8 +25,5 @@ jwt.expiration-ms=<>
 # Broker credentials master key
 app.security.master-key-base64=<>
 
-# External API keys
-kite.api.key=<>
-kite.api.secret=<>
-kite.api.userId=<>
-dhan.access-token=<>
+# External APIs
+dhan.api.base-url=https://api.dhan.co/ 

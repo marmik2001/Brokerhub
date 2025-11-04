@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.marmik.brokerhub.broker.adapter.ZerodhaAdapter;
+import com.marmik.brokerhub.broker.core.BrokerClient;
 import com.marmik.brokerhub.broker.dto.HoldingItem;
 import com.zerodhatech.kiteconnect.KiteConnect;
 import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
@@ -14,16 +15,17 @@ import com.zerodhatech.models.User;
 
 import jakarta.annotation.PostConstruct;
 
+//Was used earlier for local testing and POC
 @Service
-public class KiteService {
+public class KiteService implements BrokerClient {
 
-    @Value("${kite.api.key}")
+    @Value("${kite.api.key:<>}")
     private String apiKey;
 
-    @Value("${kite.api.secret}")
+    @Value("${kite.api.secret:<>}")
     private String apiSecret;
 
-    @Value("${kite.api.userId}")
+    @Value("${kite.api.userId:<>}")
     private String userId;
 
     private KiteConnect kiteConnect;
@@ -67,6 +69,14 @@ public class KiteService {
             e.printStackTrace();
             return Collections.emptyList();
         }
+    }
+
+    public List<HoldingItem> getHoldings(String token) {
+        return getHoldings();
+    }
+
+    public String getBrokerType() {
+        return "KITE";
     }
 
 }

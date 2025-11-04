@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.marmik.brokerhub.broker.adapter.DhanAdapter;
+import com.marmik.brokerhub.broker.core.BrokerClient;
 import com.marmik.brokerhub.broker.dto.HoldingItem;
 import com.marmik.brokerhub.broker.dto.PriceResponse;
 import com.marmik.brokerhub.broker.dto.dhan.DhanHolding;
@@ -22,10 +23,10 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
-public class DhanService {
+public class DhanService implements BrokerClient {
 
-    @Value("${dhan.access-token}")
-    private String accessToken;
+    @Value("${dhan.api.base-url}")
+    private String baseUrl;
 
     private final OkHttpClient client = new OkHttpClient();
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -35,10 +36,15 @@ public class DhanService {
         this.marketDataService = marketDataService;
     }
 
-    public List<HoldingItem> getHoldings() {
+    public String getBrokerType() {
+        return "DHAN";
+    }
+
+    public List<HoldingItem> getHoldings(String accessToken) {
         try {
+            String url = baseUrl.endsWith("/") ? baseUrl + "holdings" : baseUrl + "/holdings";
             Request request = new Request.Builder()
-                    .url("https://api.dhan.co/holdings")
+                    .url(url)
                     .addHeader("access-token", accessToken)
                     .build();
 
