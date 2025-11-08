@@ -1,8 +1,12 @@
 package com.marmik.brokerhub.broker.service;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.time.Duration;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -10,8 +14,8 @@ import org.springframework.stereotype.Service;
 import com.marmik.brokerhub.broker.adapter.DhanAdapter;
 import com.marmik.brokerhub.broker.core.BrokerClient;
 import com.marmik.brokerhub.broker.dto.HoldingItem;
-import com.marmik.brokerhub.broker.dto.PriceResponse;
 import com.marmik.brokerhub.broker.dto.dhan.DhanHolding;
+import com.marmik.brokerhub.broker.model.PriceResponse;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -19,27 +23,35 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
-import java.util.Map;
-import java.util.stream.Collectors;
-
 @Service
 public class DhanService implements BrokerClient {
 
     @Value("${dhan.api.base-url}")
     private String baseUrl;
 
-    private final OkHttpClient client = new OkHttpClient();
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    // OkHttpClient is thread-safe: reuse across requests/threads
+    private final OkHttpClient client;
+
+    // ObjectMapper is thread-safe after configuration: reuse
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
     private final MarketDataService marketDataService;
 
     public DhanService(MarketDataService marketDataService) {
         this.marketDataService = marketDataService;
+        this.client = new OkHttpClient.Builder()
+                .callTimeout(Duration.ofSeconds(7))
+                .connectTimeout(Duration.ofSeconds(2))
+                .readTimeout(Duration.ofSeconds(4))
+                .build();
     }
 
+    @Override
     public String getBrokerType() {
         return "DHAN";
     }
 
+    @Override
     public List<HoldingItem> getHoldings(String accessToken) {
         try {
             String url = baseUrl.endsWith("/") ? baseUrl + "holdings" : baseUrl + "/holdings";
@@ -62,12 +74,16 @@ public class DhanService implements BrokerClient {
                         .map(DhanAdapter::fromDhan)
                         .toList();
 
-                // Step 2: Find symbols whose data is required
-                List<String> symbols = holdings.stream()
-                        .map(HoldingItem::getTradingSymbol)
-                        .toList();
-
-                List<PriceResponse> prices = marketDataService.getPrices(symbols);
+                /*
+                 * // Step 2: Find symbols whose data is required
+                 * List<String> symbols = holdings.stream()
+                 * .map(HoldingItem::getTradingSymbol)
+                 * .toList();
+                 * 
+                 * // MarketDataService handles concurrent fetching internally
+                 * List<PriceResponse> prices = marketDataService.getPrices(symbols);
+                 */
+                List<PriceResponse> prices = new ArrayList<>();
 
                 // Step 3: Convert list → map for quick lookup
                 Map<String, PriceResponse> priceMap = prices.stream()
@@ -90,7 +106,6 @@ public class DhanService implements BrokerClient {
                         }
                     }
                 });
-
                 return holdings;
             }
         } catch (IOException e) {
