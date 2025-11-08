@@ -2,7 +2,7 @@ package com.marmik.brokerhub.broker.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.marmik.brokerhub.broker.dto.PriceResponse;
+import com.marmik.brokerhub.broker.model.PriceResponse;
 
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;

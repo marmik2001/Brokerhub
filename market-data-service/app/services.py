@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 # thread-safe in-memory cache: symbol -> (PriceResponse, timestamp)
 _cache_lock = threading.Lock()
 _cache: Dict[str, Tuple[PriceResponse, datetime]] = {}
-CACHE_TTL = timedelta(seconds=120)  # keep short to avoid rate limits
+CACHE_TTL = timedelta(seconds=1200)  # keep short to avoid rate limits
 
 def _now() -> datetime:
     """Return timezone-aware UTC time."""
