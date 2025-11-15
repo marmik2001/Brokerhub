@@ -1,5 +1,5 @@
 // src/pages/HomePage.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import {
   type Holding,
@@ -9,12 +9,16 @@ import {
 import StatCard from "../components/StatCard";
 import DataTable from "../components/DataTable";
 import EmptyState from "../components/EmptyState";
+import HoldingsSearchBar from "../components/HoldingsSearchBar";
+import FilterChips, { type FilterKey } from "../components/FilterChips";
+import { toast } from "react-hot-toast";
 
 /**
- * Minimal HomePage that:
- * - fetches aggregate holdings for selected account (currentAccount.accountId)
- * - ensures holdings/positions are never null (use empty arrays fallback)
- * - displays only tradingSymbol, quantity, averagePrice, pnl, lastPrice
+ * HomePage with search + simple filter chips.
+ * - Search filters by tradingSymbol or isin (case-insensitive substring)
+ * - Filter chips: All / Profitable / Loss / Zero P&L
+ *
+ * Filtering is client-side and non-destructive.
  */
 
 const HomePage: React.FC = () => {
@@ -28,37 +32,62 @@ const HomePage: React.FC = () => {
   const [positions, setPositions] = useState<Holding[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // search & filter state
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<FilterKey>("ALL");
+
   useEffect(() => {
-    // fetch when tab or selected account changes
     if (tab === "dashboard") {
       setLoading(true);
       fetchAggregateHoldings(accountId)
         .then((h) => {
-          // ensure array (service should already return empty array, but be defensive)
           setHoldings(h || []);
         })
-        .catch(() => setHoldings([]))
+        .catch((err) => {
+          console.error("Failed to load holdings", err);
+          toast.error("Failed to load holdings");
+          setHoldings([]);
+        })
         .finally(() => setLoading(false));
     } else if (tab === "positions") {
       setLoading(true);
       fetchAggregatePositions(accountId)
-        .then((p) => {
-          setPositions(p || []);
-        })
+        .then((p) => setPositions(p || []))
         .catch(() => setPositions([]))
         .finally(() => setLoading(false));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, accountId]);
 
-  // compute totals defensively
-  const totalValue = holdings.reduce((s, h) => {
+  // derived filtered holdings using search + filter
+  const filteredHoldings = useMemo(() => {
+    const q = (search || "").trim().toLowerCase();
+    return holdings.filter((h) => {
+      // search match
+      if (q) {
+        const sym = (h.tradingSymbol ?? "").toLowerCase();
+        const isin = (h.isin ?? "").toLowerCase();
+        if (!sym.includes(q) && !isin.includes(q)) return false;
+      }
+
+      // filter chips
+      if (filter === "PROFIT") {
+        return (h.pnl ?? 0) >= 0;
+      }
+      if (filter === "LOSS") {
+        return (h.pnl ?? 0) < 0;
+      }
+      return true; // ALL
+    });
+  }, [holdings, search, filter]);
+
+  const totalValue = filteredHoldings.reduce((s, h) => {
     const last = h.lastPrice ?? 0;
     const qty = h.quantity ?? 0;
     return s + last * qty;
   }, 0);
 
-  const totalPnl = holdings.reduce((s, h) => s + (h.pnl ?? 0), 0);
+  const totalPnl = filteredHoldings.reduce((s, h) => s + (h.pnl ?? 0), 0);
 
   return (
     <div className="space-y-6">
@@ -108,17 +137,33 @@ const HomePage: React.FC = () => {
           </div>
 
           <div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between mb-3">
+              <div className="flex-1 min-w-0">
+                <HoldingsSearchBar initial={search} onSearch={setSearch} />
+              </div>
+              <div>
+                <FilterChips value={filter} onChange={setFilter} />
+              </div>
+            </div>
+
             <h3 className="text-lg font-medium mb-2">Holdings</h3>
             {loading ? (
               <div className="p-6 bg-white border rounded">Loading...</div>
-            ) : holdings.length === 0 ? (
-              <EmptyState
-                title="No holdings available"
-                description="Connect a broker or add mock data"
-              />
+            ) : filteredHoldings.length === 0 ? (
+              // if there are no holdings to display (after filters/search) show a lighter empty state:
+              holdings.length === 0 ? (
+                <EmptyState
+                  title="No holdings available"
+                  description="Connect a broker or add mock data"
+                />
+              ) : (
+                <div className="p-6 bg-white border rounded text-center text-gray-600">
+                  No holdings match your search / filters.
+                </div>
+              )
             ) : (
               <DataTable<Holding>
-                data={holdings}
+                data={filteredHoldings}
                 columns={[
                   {
                     header: "Symbol",
@@ -126,16 +171,17 @@ const HomePage: React.FC = () => {
                       <div className="font-medium">{r.tradingSymbol}</div>
                     ),
                   },
+                  { header: "ISIN", accessor: (r) => r.isin ?? "—" },
                   { header: "Qty", accessor: (r) => r.quantity },
                   {
                     header: "Avg Price",
-                    accessor: (r) => r.averagePrice.toFixed(2),
+                    accessor: (r) => (r.averagePrice ?? 0).toFixed(2),
                   },
                   {
                     header: "Last Price",
-                    accessor: (r) => r.lastPrice.toFixed(2),
+                    accessor: (r) => (r.lastPrice ?? 0).toFixed(2),
                   },
-                  { header: "P&L", accessor: (r) => r.pnl.toFixed(2) },
+                  { header: "P&L", accessor: (r) => (r.pnl ?? 0).toFixed(2) },
                 ]}
               />
             )}
@@ -161,6 +207,7 @@ const HomePage: React.FC = () => {
                   accessor: (r) => (r.lastPrice ?? 0) * (r.quantity ?? 0),
                 },
                 { header: "P&L", accessor: (r) => r.pnl },
+                { header: "ISIN", accessor: (r) => r.isin ?? "—" },
               ]}
             />
           )}
