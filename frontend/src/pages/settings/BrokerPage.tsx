@@ -11,7 +11,7 @@ import {
 import { toast } from "react-hot-toast";
 
 const SettingsBrokerPage: React.FC = () => {
-  const { currentAccount, isAdmin } = useAuth();
+  const { currentAccount } = useAuth();
 
   // credential list state
   const [credentials, setCredentials] = useState<BrokerCredential[]>([]);
@@ -62,7 +62,7 @@ const SettingsBrokerPage: React.FC = () => {
     <div className="bg-white border rounded p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold">Broker Access</h3>
-        {isAdmin && (
+        {
           <div>
             <button
               onClick={() => setShowAdd((s) => !s)}
@@ -71,10 +71,10 @@ const SettingsBrokerPage: React.FC = () => {
               + Add
             </button>
           </div>
-        )}
+        }
       </div>
 
-      {showAdd && isAdmin && (
+      {showAdd && (
         <AddBrokerCredentialForm
           accountMemberId={accountMemberId}
           onSaved={() => {
@@ -90,16 +90,10 @@ const SettingsBrokerPage: React.FC = () => {
       ) : (
         <>
           {!hasCredentials ? (
-            isAdmin ? (
-              <div className="text-sm text-gray-600 mt-2">
-                No broker credentials yet. Use{" "}
-                <span className="font-medium">+ Add</span> to add one.
-              </div>
-            ) : (
-              <div className="text-sm text-gray-600 mt-2">
-                No broker credentials available.
-              </div>
-            )
+            <div className="text-sm text-gray-600 mt-2">
+              No broker credentials yet. Use{" "}
+              <span className="font-medium">+ Add</span> to add one.
+            </div>
           ) : (
             <DataTable<BrokerCredential>
               data={credentials}
@@ -108,17 +102,14 @@ const SettingsBrokerPage: React.FC = () => {
                 { header: "Broker", accessor: (r) => r.broker },
                 {
                   header: "Actions",
-                  accessor: (r) =>
-                    isAdmin ? (
-                      <button
-                        onClick={() => handleDelete(r.credentialId)}
-                        className="text-red-600 hover:underline"
-                      >
-                        Remove
-                      </button>
-                    ) : (
-                      <span className="text-sm text-gray-500">—</span>
-                    ),
+                  accessor: (r) => (
+                    <button
+                      onClick={() => handleDelete(r.credentialId)}
+                      className="text-red-600 hover:underline"
+                    >
+                      Remove
+                    </button>
+                  ),
                 },
               ]}
             />
