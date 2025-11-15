@@ -1,69 +1,35 @@
-// src/services/portfolioService.ts
-export interface Holding {
-  id: string;
-  symbol: string;
-  name: string;
+import api from "../api";
+/**
+ * Lightweight portfolio types used by the dashboard.
+ *
+ * Note: kept minimal so frontend code remains decoupled from backend DTOs.
+ */
+export type Holding = {
+  exchange: string;
+  tradingSymbol: string;
+  isin?: string;
   quantity: number;
-  avgPrice: number;
-  marketPrice: number;
-  value: number;
+  averagePrice: number;
   pnl: number;
-  account: string; // account/broker name
-  owner: string; // owner loginId
-}
+  lastPrice: number;
+  dayChange: number;
+  dayChangePercentage: number;
+};
 
-const SAMPLE_HOLDINGS: Holding[] = [
-  {
-    id: "1",
-    symbol: "AAPL",
-    name: "Apple Inc.",
-    quantity: 10,
-    avgPrice: 140,
-    marketPrice: 170,
-    value: 1700,
-    pnl: 300,
-    account: "Zerodha",
-    owner: "testuser",
-  },
-  {
-    id: "2",
-    symbol: "INFY",
-    name: "Infosys",
-    quantity: 20,
-    avgPrice: 1000,
-    marketPrice: 1250,
-    value: 25000,
-    pnl: 5000,
-    account: "Zerodha",
-    owner: "testuser",
-  },
-  {
-    id: "3",
-    symbol: "TSLA",
-    name: "Tesla",
-    quantity: 2,
-    avgPrice: 800,
-    marketPrice: 780,
-    value: 1560,
-    pnl: -40,
-    account: "Other",
-    owner: "family_member",
-  },
-];
+/**
+ * Service to fetch aggregated holdings for an account.
+ *
+ * Assumptions:
+ * - axios instance is exported from src/api (imported as `api`).
+ * - endpoint: GET /api/accounts/{accountId}/aggregate-holdings
+ * - If accountId is falsy, this returns an empty array immediately.
+ */
 
-export async function fetchHoldings(filter?: {
-  owner?: string;
-  account?: string;
-}): Promise<Holding[]> {
-  await new Promise((r) => setTimeout(r, 300));
-  let items = SAMPLE_HOLDINGS.slice();
-  if (filter?.owner) items = items.filter((h) => h.owner === filter.owner);
-  if (filter?.account)
-    items = items.filter((h) => h.account === filter.account);
-  return items;
-}
-
-export async function fetchPositions(): Promise<Holding[]> {
-  // For MVP, reuse holdings as positions snapshot
-  return fetchHoldings();
+export async function fetchAggregateHoldings(
+  accountId?: string
+): Promise<Holding[]> {
+  if (!accountId) return [];
+  const url = `/accounts/${accountId}/aggregate-holdings`;
+  const resp = await api.get<Holding[]>(url);
+  return resp?.data ?? [];
 }

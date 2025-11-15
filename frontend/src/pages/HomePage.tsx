@@ -1,40 +1,88 @@
 // src/pages/HomePage.tsx
 import React, { useEffect, useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
 import {
-  fetchHoldings,
-  fetchPositions,
-  type Holding,
+  fetchAggregateHoldings,
+  type Holding as RawHolding,
 } from "../services/portfolioService";
 import StatCard from "../components/StatCard";
 import DataTable from "../components/DataTable";
 import EmptyState from "../components/EmptyState";
 
+type UIHolding = {
+  symbol: string;
+  quantity: number;
+  avgPrice: number;
+  marketPrice: number;
+  value: number;
+  pnl: number;
+};
+
 const HomePage: React.FC = () => {
+  const { currentAccount } = useAuth();
+  const accountId = currentAccount?.accountId ?? undefined;
+
   const [tab, setTab] = useState<"dashboard" | "positions" | "feed">(
     "dashboard"
   );
-  const [holdings, setHoldings] = useState<Holding[]>([]);
-  const [positions, setPositions] = useState<Holding[]>([]);
+  const [holdings, setHoldings] = useState<UIHolding[]>([]);
+  const [positions, setPositions] = useState<UIHolding[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // fetch when tab or selected account changes
     if (tab === "dashboard") {
       setLoading(true);
-      fetchHoldings().then((h) => {
-        setHoldings(h);
-        setLoading(false);
-      });
+      fetchAggregateHoldings(accountId)
+        .then((h: RawHolding[]) => {
+          // map backend Holding -> UIHolding (minimal mapping)
+          const mapped: UIHolding[] = (h || []).map((x) => {
+            const qty = x.quantity ?? 0;
+            const last = x.lastPrice ?? 0;
+            const avg = x.averagePrice ?? 0;
+            const value = qty * last;
+            return {
+              symbol: x.tradingSymbol ?? "",
+              quantity: qty,
+              avgPrice: avg,
+              marketPrice: last,
+              value,
+              pnl: x.pnl ?? 0,
+            };
+          });
+          setHoldings(mapped);
+        })
+        .finally(() => setLoading(false));
     } else if (tab === "positions") {
       setLoading(true);
-      fetchPositions().then((p) => {
-        setPositions(p);
-        setLoading(false);
-      });
+      // attempt to call fetchPositions(accountId) if available in your service
+      // If not implemented, this should be a no-op or return an empty array.
+      fetchAggregateHoldings(accountId)
+        .then((p: RawHolding[]) => {
+          const mapped = (p || []).map((x) => {
+            const qty = x.quantity ?? 0;
+            const last = x.lastPrice ?? 0;
+            const avg = x.averagePrice ?? 0;
+            const value = qty * last;
+            return {
+              symbol: x.tradingSymbol ?? "",
+              quantity: qty,
+              avgPrice: avg,
+              marketPrice: last,
+              value,
+              pnl: x.pnl ?? 0,
+              account: accountId,
+            };
+          });
+          setPositions(mapped);
+        })
+        .finally(() => setLoading(false));
     }
-  }, [tab]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, accountId]);
 
-  const totalValue = holdings.reduce((s, h) => s + h.value, 0);
-  const totalPnl = holdings.reduce((s, h) => s + h.pnl, 0);
+  const totalValue = holdings.reduce((s, h) => s + (h.value ?? 0), 0);
+  const totalPnl = holdings.reduce((s, h) => s + (h.pnl ?? 0), 0);
 
   return (
     <div className="space-y-6">
@@ -102,13 +150,11 @@ const HomePage: React.FC = () => {
                       <div className="font-medium">{r.symbol}</div>
                     ),
                   },
-                  { header: "Name", accessor: (r) => r.name },
                   { header: "Qty", accessor: (r) => r.quantity },
                   { header: "Avg Price", accessor: (r) => r.avgPrice },
                   { header: "Mkt Price", accessor: (r) => r.marketPrice },
                   { header: "Value", accessor: (r) => r.value },
                   { header: "P&L", accessor: (r) => r.pnl },
-                  { header: "Account", accessor: (r) => r.account },
                 ]}
               />
             )}
@@ -131,7 +177,6 @@ const HomePage: React.FC = () => {
                 { header: "Qty", accessor: (r) => r.quantity },
                 { header: "Value", accessor: (r) => r.value },
                 { header: "P&L", accessor: (r) => r.pnl },
-                { header: "Account", accessor: (r) => r.account },
               ]}
             />
           )}
