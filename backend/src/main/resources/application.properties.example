@@ -26,4 +26,4 @@ jwt.expiration-ms=<>
 app.security.master-key-base64=<>
 
 # External APIs
-dhan.api.base-url=https://api.dhan.co/ 
+dhan.api.base-url=https://api.dhan.co/
