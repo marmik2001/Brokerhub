@@ -2,31 +2,30 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import {
+  type Holding,
   fetchAggregateHoldings,
-  type Holding as RawHolding,
+  fetchAggregatePositions,
 } from "../services/portfolioService";
 import StatCard from "../components/StatCard";
 import DataTable from "../components/DataTable";
 import EmptyState from "../components/EmptyState";
 
-type UIHolding = {
-  symbol: string;
-  quantity: number;
-  avgPrice: number;
-  marketPrice: number;
-  value: number;
-  pnl: number;
-};
+/**
+ * Minimal HomePage that:
+ * - fetches aggregate holdings for selected account (currentAccount.accountId)
+ * - ensures holdings/positions are never null (use empty arrays fallback)
+ * - displays only tradingSymbol, quantity, averagePrice, pnl, lastPrice
+ */
 
 const HomePage: React.FC = () => {
   const { currentAccount } = useAuth();
-  const accountId = currentAccount?.accountId ?? undefined;
+  const accountId = currentAccount?.accountId;
 
   const [tab, setTab] = useState<"dashboard" | "positions" | "feed">(
     "dashboard"
   );
-  const [holdings, setHoldings] = useState<UIHolding[]>([]);
-  const [positions, setPositions] = useState<UIHolding[]>([]);
+  const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [positions, setPositions] = useState<Holding[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -34,54 +33,31 @@ const HomePage: React.FC = () => {
     if (tab === "dashboard") {
       setLoading(true);
       fetchAggregateHoldings(accountId)
-        .then((h: RawHolding[]) => {
-          // map backend Holding -> UIHolding (minimal mapping)
-          const mapped: UIHolding[] = (h || []).map((x) => {
-            const qty = x.quantity ?? 0;
-            const last = x.lastPrice ?? 0;
-            const avg = x.averagePrice ?? 0;
-            const value = qty * last;
-            return {
-              symbol: x.tradingSymbol ?? "",
-              quantity: qty,
-              avgPrice: avg,
-              marketPrice: last,
-              value,
-              pnl: x.pnl ?? 0,
-            };
-          });
-          setHoldings(mapped);
+        .then((h) => {
+          // ensure array (service should already return empty array, but be defensive)
+          setHoldings(h || []);
         })
+        .catch(() => setHoldings([]))
         .finally(() => setLoading(false));
     } else if (tab === "positions") {
       setLoading(true);
-      // attempt to call fetchPositions(accountId) if available in your service
-      // If not implemented, this should be a no-op or return an empty array.
-      fetchAggregateHoldings(accountId)
-        .then((p: RawHolding[]) => {
-          const mapped = (p || []).map((x) => {
-            const qty = x.quantity ?? 0;
-            const last = x.lastPrice ?? 0;
-            const avg = x.averagePrice ?? 0;
-            const value = qty * last;
-            return {
-              symbol: x.tradingSymbol ?? "",
-              quantity: qty,
-              avgPrice: avg,
-              marketPrice: last,
-              value,
-              pnl: x.pnl ?? 0,
-              account: accountId,
-            };
-          });
-          setPositions(mapped);
+      fetchAggregatePositions(accountId)
+        .then((p) => {
+          setPositions(p || []);
         })
+        .catch(() => setPositions([]))
         .finally(() => setLoading(false));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, accountId]);
 
-  const totalValue = holdings.reduce((s, h) => s + (h.value ?? 0), 0);
+  // compute totals defensively
+  const totalValue = holdings.reduce((s, h) => {
+    const last = h.lastPrice ?? 0;
+    const qty = h.quantity ?? 0;
+    return s + last * qty;
+  }, 0);
+
   const totalPnl = holdings.reduce((s, h) => s + (h.pnl ?? 0), 0);
 
   return (
@@ -141,20 +117,25 @@ const HomePage: React.FC = () => {
                 description="Connect a broker or add mock data"
               />
             ) : (
-              <DataTable
+              <DataTable<Holding>
                 data={holdings}
                 columns={[
                   {
                     header: "Symbol",
                     accessor: (r) => (
-                      <div className="font-medium">{r.symbol}</div>
+                      <div className="font-medium">{r.tradingSymbol}</div>
                     ),
                   },
                   { header: "Qty", accessor: (r) => r.quantity },
-                  { header: "Avg Price", accessor: (r) => r.avgPrice },
-                  { header: "Mkt Price", accessor: (r) => r.marketPrice },
-                  { header: "Value", accessor: (r) => r.value },
-                  { header: "P&L", accessor: (r) => r.pnl },
+                  {
+                    header: "Avg Price",
+                    accessor: (r) => r.averagePrice.toFixed(2),
+                  },
+                  {
+                    header: "Last Price",
+                    accessor: (r) => r.lastPrice.toFixed(2),
+                  },
+                  { header: "P&L", accessor: (r) => r.pnl.toFixed(2) },
                 ]}
               />
             )}
@@ -170,12 +151,15 @@ const HomePage: React.FC = () => {
           ) : positions.length === 0 ? (
             <EmptyState title="No positions" />
           ) : (
-            <DataTable
+            <DataTable<Holding>
               data={positions}
               columns={[
-                { header: "Symbol", accessor: (r) => r.symbol },
+                { header: "Symbol", accessor: (r) => r.tradingSymbol },
                 { header: "Qty", accessor: (r) => r.quantity },
-                { header: "Value", accessor: (r) => r.value },
+                {
+                  header: "Value",
+                  accessor: (r) => (r.lastPrice ?? 0) * (r.quantity ?? 0),
+                },
                 { header: "P&L", accessor: (r) => r.pnl },
               ]}
             />

@@ -33,3 +33,20 @@ export async function fetchAggregateHoldings(
   const resp = await api.get<Holding[]>(url);
   return resp?.data ?? [];
 }
+
+/**
+ * Fetch today's positions for the selected account.
+ * Backend may not implement this yet — keep it safe by returning [] if missing.
+ */
+export async function fetchAggregatePositions(
+  accountId?: string
+): Promise<Holding[]> {
+  if (!accountId) return [];
+  const url = `/accounts/${accountId}/aggregate-positions`;
+  try {
+    const resp = await api.get<Holding[]>(url);
+    return resp?.data ?? [];
+  } catch (err) {
+    return [];
+  }
+}
