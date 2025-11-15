@@ -154,7 +154,7 @@ const HomePage: React.FC = () => {
               holdings.length === 0 ? (
                 <EmptyState
                   title="No holdings available"
-                  description="Connect a broker or add mock data"
+                  description="Connect a broker!"
                 />
               ) : (
                 <div className="p-6 bg-white border rounded text-center text-gray-600">
