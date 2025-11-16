@@ -4,7 +4,7 @@ import { changePassword } from "../../services/authService";
 import { toast } from "react-hot-toast";
 
 const ProfilePage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, currentAccount } = useAuth();
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -48,7 +48,7 @@ const ProfilePage: React.FC = () => {
         </div>
         <div className="py-3 flex justify-between">
           <dt className="font-medium text-gray-600">Role</dt>
-          <dd className="text-gray-900">{user?.role}</dd>
+          <dd className="text-gray-900">{currentAccount?.role}</dd>
         </div>
       </dl>
 
