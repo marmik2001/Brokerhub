@@ -1,7 +1,6 @@
 package com.marmik.brokerhub.broker.service;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -74,16 +73,12 @@ public class DhanService implements BrokerClient {
                         .map(DhanAdapter::fromDhan)
                         .toList();
 
-                /*
-                 * // Step 2: Find symbols whose data is required
-                 * List<String> symbols = holdings.stream()
-                 * .map(HoldingItem::getTradingSymbol)
-                 * .toList();
-                 * 
-                 * // MarketDataService handles concurrent fetching internally
-                 * List<PriceResponse> prices = marketDataService.getPrices(symbols);
-                 */
-                List<PriceResponse> prices = new ArrayList<>();
+                // Step 2: Find symbols whose data is required
+                List<String> symbols = holdings.stream()
+                        .map(HoldingItem::getTradingSymbol)
+                        .toList();
+
+                List<PriceResponse> prices = marketDataService.getPrices(symbols);
 
                 // Step 3: Convert list → map for quick lookup
                 Map<String, PriceResponse> priceMap = prices.stream()
@@ -92,20 +87,25 @@ public class DhanService implements BrokerClient {
                 // Step 4: Enrich holdings
                 holdings.forEach(holding -> {
                     PriceResponse price = priceMap.get(holding.getTradingSymbol());
-                    if (price != null) {
+
+                    if (price != null && price.getLastPrice() != 0) {
+                        // Normal case
                         holding.setLastPrice(price.getLastPrice());
                         holding.setDayChange(price.getDayChange());
                         holding.setDayChangePercentage(price.getDayChangePercentage());
 
-                        // Compute PnL
-                        if (price.getLastPrice() == 0)
-                            holding.setPnl(0);
-                        else {
-                            double pnl = (price.getLastPrice() - holding.getAveragePrice()) * holding.getQuantity();
-                            holding.setPnl(pnl);
-                        }
+                        double pnl = (price.getLastPrice() - holding.getAveragePrice()) * holding.getQuantity();
+                        holding.setPnl(pnl);
+                    } else {
+                        // Fallback: show zero P&L, and last price = avg price
+                        double avg = holding.getAveragePrice();
+                        holding.setLastPrice(avg);
+                        holding.setDayChange(0);
+                        holding.setDayChangePercentage(0);
+                        holding.setPnl(0);
                     }
                 });
+
                 return holdings;
             }
         } catch (IOException e) {
