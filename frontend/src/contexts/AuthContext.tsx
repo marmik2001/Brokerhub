@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import api from "../api";
 import {
   loginService,
   changePassword,
@@ -15,6 +14,7 @@ interface AuthContextType {
   login: (identifier: string, password: string) => Promise<void>;
   logout: () => void;
   selectAccount: (accountId: string) => void;
+  selectAccountDirect: (account: AccountSummary) => void;
   addAccount: (account: AccountSummary) => void;
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
   isAuthenticated: boolean;
@@ -34,6 +34,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
+
+  // accounts + currentAccount still exist as state — but login no longer fills them
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
   const [currentAccount, setCurrentAccount] = useState<AccountSummary | null>(
     null
@@ -46,8 +48,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const parsed = JSON.parse(stored);
         setUser(parsed.user || null);
         setToken(parsed.token || null);
-        setAccounts(parsed.accounts || []);
-        setCurrentAccount(parsed.currentAccount || null);
+
+        // NOTE: we NO LONGER load accounts/currentAccount from storage
+        // Accounts must be fetched from GET /accounts
       } catch (err) {
         console.error("Failed to parse stored auth", err);
       }
@@ -58,20 +61,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem("brokerhub_auth", JSON.stringify(data));
   };
 
+  /**
+   * Login no longer stores accounts or currentAccount.
+   */
   const login = async (identifier: string, password: string) => {
     const data = await loginService({ identifier, password });
-    const firstAccount = data.accounts?.[0] || null;
+
     const authData = {
       token: data.token,
       user: data.user,
-      accounts: data.accounts,
-      currentAccount: firstAccount,
+      // accounts removed
+      // currentAccount removed
     };
+
     persist(authData);
+
     setUser(data.user);
     setToken(data.token);
-    setAccounts(data.accounts);
-    setCurrentAccount(firstAccount);
+
+    // clear accounts and currentAccount from state on login
+    setAccounts([]);
+    setCurrentAccount(null);
   };
 
   const logout = () => {
@@ -83,74 +93,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   /**
-   * Select an account by accountId.
-   *
-   * Behavior:
-   *  - Immediately persist the selection (without accountMemberId).
-   *  - Fire a background request GET /api/accounts/{accountId}/membership to fetch the
-   *    current user's membership id (accountMemberId). On success, update persisted state
-   *    and `currentAccount` to include accountMemberId so downstream services can use it.
-   *
-   * This keeps the select-account call synchronous (no API-await required by callers),
-   * while ensuring membership-id is resolved shortly after selection.
+   * selectAccount persists only token + user + currentAccount.
    */
   const selectAccount = (accountId: string) => {
     const selected = accounts.find((a) => a.accountId === accountId) || null;
     if (!selected) return;
 
-    const updated = { token, user, accounts, currentAccount: selected };
-    persist(updated);
-    setCurrentAccount(selected);
-
-    // Background fetch membership for the selected account and update persisted state.
-    (async () => {
-      try {
-        const resp = await api.get(`/accounts/${accountId}/membership`);
-        const data = resp.data as {
-          accountMemberId: string;
-          accountId: string;
-          role: string;
-        };
-
-        // merge accountMemberId into selected and into accounts list
-        const withMember: AccountSummary = {
-          ...selected,
-          accountMemberId: data.accountMemberId,
-          role: data.role as "ADMIN" | "MEMBER",
-        };
-
-        // update accounts array: replace the matching account with enriched object
-        const newAccounts = accounts.map((a) =>
-          a.accountId === accountId ? withMember : a
-        );
-
-        const persistent = {
-          token,
-          user,
-          accounts: newAccounts,
-          currentAccount: withMember,
-        };
-
-        persist(persistent);
-        setAccounts(newAccounts);
-        setCurrentAccount(withMember);
-      } catch (err) {
-        // fail silently but log — selection remains usable, but accountMemberId won't be present
-        console.error("Failed to fetch membership for account", accountId, err);
-      }
-    })();
-  };
-
-  const addAccount = (account: AccountSummary) => {
     const updated = {
       token,
       user,
-      accounts: [...accounts, account],
+      currentAccount: selected,
+      // accounts are NOT stored anymore
+    };
+
+    persist(updated);
+    setCurrentAccount(selected);
+  };
+
+  /**
+   * selectAccountDirect persists only token + user + currentAccount.
+   */
+  const selectAccountDirect = (account: AccountSummary) => {
+    const newAccounts = accounts.some((a) => a.accountId === account.accountId)
+      ? accounts.map((a) => (a.accountId === account.accountId ? account : a))
+      : [...accounts, account];
+
+    setAccounts(newAccounts);
+    setCurrentAccount(account);
+
+    const persistent = {
+      token,
+      user,
+      currentAccount: account,
+      // accounts not persisted
+    };
+
+    persist(persistent);
+  };
+
+  const addAccount = (account: AccountSummary) => {
+    const newList = [...accounts, account];
+    setAccounts(newList);
+    setCurrentAccount(account);
+
+    // persist only token + user + currentAccount (NOT accounts)
+    const updated = {
+      token,
+      user,
       currentAccount: account,
     };
+
     persist(updated);
-    setAccounts((prev) => [...prev, account]);
-    setCurrentAccount(account);
   };
 
   const handleChangePassword = async (
@@ -172,6 +165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         login,
         logout,
         selectAccount,
+        selectAccountDirect,
         addAccount,
         changePassword: handleChangePassword,
         isAuthenticated: !!token,

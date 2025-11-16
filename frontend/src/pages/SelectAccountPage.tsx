@@ -1,13 +1,46 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import api from "../api";
+import type { AccountSummary } from "../services/authService";
 
 const SelectGroupPage: React.FC = () => {
-  const { accounts, selectAccount } = useAuth();
+  // NOTE: we intentionally do NOT rely on auth.accounts here.
+  // This page fetches the authoritative accounts list from GET /api/accounts.
+  const { selectAccountDirect } = useAuth();
   const navigate = useNavigate();
 
-  const handleSelect = (accountId: string) => {
-    selectAccount(accountId);
+  const [accounts, setAccounts] = useState<AccountSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      try {
+        const resp = await api.get("/accounts");
+        // expected payload: [{ accountId, name, description, role, accountMemberId }]
+        if (!mounted) return;
+        setAccounts(resp.data || []);
+      } catch (e: any) {
+        console.error("Failed to fetch accounts", e);
+        if (mounted) setErr(e?.message || "Failed to load accounts");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleSelect = (account: AccountSummary) => {
+    // Persist selection via AuthContext helper which will:
+    //  - persist currentAccount into localStorage
+    //  - if accountMemberId not present, attempt to fetch it in background
+    selectAccountDirect(account);
     navigate("/");
   };
 
@@ -18,24 +51,41 @@ const SelectGroupPage: React.FC = () => {
           Select a Group to Continue
         </h2>
 
-        <div className="space-y-3">
-          {accounts.map((a) => (
-            <button
-              key={a.accountId}
-              onClick={() => handleSelect(a.accountId)}
-              className="w-full border border-gray-300 rounded-lg py-2 hover:bg-gray-50 text-gray-700 font-medium"
-            >
-              Account ID: {a.accountId} ({a.role})
-            </button>
-          ))}
+        {loading ? (
+          <div className="text-sm text-gray-600">Loading accounts...</div>
+        ) : err ? (
+          <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">
+            {err}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {accounts.length === 0 && (
+              <div className="text-sm text-gray-600">No accounts found</div>
+            )}
 
-          <button
-            onClick={() => navigate("/create-account")}
-            className="w-full mt-4 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
-          >
-            + Add Group
-          </button>
-        </div>
+            {accounts.map((a) => (
+              <button
+                key={a.accountId}
+                onClick={() => handleSelect(a)}
+                className="w-full border border-gray-300 rounded-lg py-2 hover:bg-gray-50 text-gray-700 font-medium"
+              >
+                <div className="text-left">
+                  <div>{a.name ?? a.accountId}</div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    Role: {a.role ?? "MEMBER"}
+                  </div>
+                </div>
+              </button>
+            ))}
+
+            <button
+              onClick={() => navigate("/create-account")}
+              className="w-full mt-4 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
+            >
+              + Add Group
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

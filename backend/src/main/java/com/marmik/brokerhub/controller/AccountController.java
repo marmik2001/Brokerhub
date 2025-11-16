@@ -1,5 +1,6 @@
 package com.marmik.brokerhub.controller;
 
+import com.marmik.brokerhub.model.Account;
 import com.marmik.brokerhub.model.AccountMember;
 import com.marmik.brokerhub.repository.AccountMemberRepository;
 import com.marmik.brokerhub.security.JwtUtil;
@@ -254,38 +255,19 @@ public class AccountController {
         UUID userUUID = UUID.fromString(userIdStr);
         List<AccountMember> memberships = memberRepo.findByUserId(userUUID);
 
-        return ResponseEntity.ok(memberships.stream().map(m -> Map.of(
-                "accountId", m.getAccountId(),
-                "role", m.getRole())).collect(Collectors.toList()));
-    }
+        var payload = memberships.stream().map(m -> {
+            // fetch account details if present
+            Optional<Account> accOpt = accountService.getAccountById(m.getAccountId());
 
-    @GetMapping("/{accountId}/membership")
-    public ResponseEntity<?> getMyMembership(@PathVariable String accountId,
-            @RequestHeader("Authorization") String authHeader) {
-        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
-            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
-        }
+            Map<String, Object> map = new HashMap<>();
+            map.put("accountId", m.getAccountId());
+            map.put("name", accOpt.map(Account::getName).orElse(null));
+            map.put("description", accOpt.map(Account::getDescription).orElse(null));
+            map.put("role", m.getRole());
+            map.put("accountMemberId", m.getId());
+            return map;
+        }).collect(Collectors.toList());
 
-        String raw = authHeader.substring(7).trim();
-        String userIdStr = jwtUtil.getUserId(raw).orElse(null);
-        if (userIdStr == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
-        }
-
-        UUID userId;
-        UUID accId;
-        try {
-            userId = UUID.fromString(userIdStr);
-            accId = UUID.fromString(accountId);
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of("error", "invalid UUID"));
-        }
-
-        return memberRepo.findByUserIdAndAccountId(userId, accId)
-                .map(am -> ResponseEntity.ok(Map.of(
-                        "accountMemberId", am.getId(),
-                        "accountId", am.getAccountId(),
-                        "role", am.getRole())))
-                .orElseGet(() -> ResponseEntity.status(404).body(Map.of("error", "membership not found")));
+        return ResponseEntity.ok(payload);
     }
 }

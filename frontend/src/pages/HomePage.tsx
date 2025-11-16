@@ -133,7 +133,7 @@ const HomePage: React.FC = () => {
               value={`₹ ${totalPnl.toLocaleString()}`}
               sub={totalPnl >= 0 ? "Unrealised gain" : "Unrealised loss"}
             />
-            <StatCard title="Allocation" value="See Holdings" />
+            <StatCard title="Description" value="" />
           </div>
 
           <div>

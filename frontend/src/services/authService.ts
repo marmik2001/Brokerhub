@@ -13,19 +13,23 @@ export interface AuthUser {
 }
 
 /**
- * AccountSummary now optionally includes accountMemberId
- * so we can store the membership UUID for per-user operations like Broker Credentials.
+ * AccountSummary now includes name/description and optionally accountMemberId
+ * so frontend components (SelectAccount) can render full info returned by GET /api/accounts.
  */
 export interface AccountSummary {
   accountId: string;
+  name?: string;
+  description?: string;
   role: "ADMIN" | "MEMBER";
   accountMemberId?: string;
 }
 
+/**
+ * LoginResponse: NOTE - login no longer returns accounts. We only get token + user.
+ */
 export interface LoginResponse {
   token: string;
   user: AuthUser;
-  accounts: AccountSummary[];
 }
 
 export interface ChangePasswordPayload {

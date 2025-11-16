@@ -123,4 +123,13 @@ public class AccountService {
         member.setRole(role.toUpperCase());
         return memberRepo.save(member);
     }
+
+    /**
+     * Fetch an Account by id (nullable as Optional).
+     */
+    @Transactional(readOnly = true)
+    public Optional<Account> getAccountById(UUID accountId) {
+        return accountRepo.findById(accountId);
+    }
+
 }
