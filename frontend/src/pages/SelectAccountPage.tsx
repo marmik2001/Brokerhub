@@ -67,13 +67,19 @@ const SelectGroupPage: React.FC = () => {
               <button
                 key={a.accountId}
                 onClick={() => handleSelect(a)}
-                className="w-full border border-gray-300 rounded-lg py-2 hover:bg-gray-50 text-gray-700 font-medium"
+                className="w-full p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all text-left bg-white hover:bg-gray-50"
               >
-                <div className="text-left">
-                  <div>{a.name ?? a.accountId}</div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    Role: {a.role ?? "MEMBER"}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-gray-900 font-semibold text-sm">
+                      {a.name ?? a.accountId}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      Role: {a.role ?? "MEMBER"}
+                    </div>
                   </div>
+
+                  <div className="text-gray-400">➜</div>
                 </div>
               </button>
             ))}
