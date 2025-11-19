@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import com.marmik.brokerhub.broker.adapter.ZerodhaAdapter;
 import com.marmik.brokerhub.broker.core.BrokerClient;
 import com.marmik.brokerhub.broker.dto.HoldingItem;
+import com.marmik.brokerhub.broker.dto.PositionItem;
 import com.zerodhatech.kiteconnect.KiteConnect;
 import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
 import com.zerodhatech.models.User;
@@ -77,6 +78,11 @@ public class KiteService implements BrokerClient {
 
     public String getBrokerType() {
         return "KITE";
+    }
+
+    @Override
+    public List<PositionItem> getPositions(String token) {
+        throw new UnsupportedOperationException("Unimplemented method 'getPositions'");
     }
 
 }

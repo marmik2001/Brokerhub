@@ -13,7 +13,9 @@ import org.springframework.stereotype.Service;
 import com.marmik.brokerhub.broker.adapter.DhanAdapter;
 import com.marmik.brokerhub.broker.core.BrokerClient;
 import com.marmik.brokerhub.broker.dto.HoldingItem;
+import com.marmik.brokerhub.broker.dto.PositionItem;
 import com.marmik.brokerhub.broker.dto.dhan.DhanHolding;
+import com.marmik.brokerhub.broker.dto.dhan.DhanPosition;
 import com.marmik.brokerhub.broker.model.PriceResponse;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -107,6 +109,37 @@ public class DhanService implements BrokerClient {
                 });
 
                 return holdings;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            return Collections.emptyList();
+        }
+    }
+
+    @Override
+    public List<PositionItem> getPositions(String accessToken) {
+        try {
+            String url = baseUrl.endsWith("/") ? baseUrl + "positions" : baseUrl + "/positions";
+            Request request = new Request.Builder()
+                    .url(url)
+                    .addHeader("access-token", accessToken)
+                    .build();
+
+            try (Response response = client.newCall(request).execute()) {
+                if (!response.isSuccessful() || response.body() == null)
+                    return Collections.emptyList();
+
+                String json = response.body().string();
+                List<DhanPosition> dhanPositions = objectMapper.readValue(json,
+                        new TypeReference<List<DhanPosition>>() {
+                        });
+
+                // Map DhanPosition -> PositionItem (minimal)
+                List<PositionItem> positions = dhanPositions.stream()
+                        .map(DhanAdapter::fromDhanPosition)
+                        .toList();
+
+                return positions;
             }
         } catch (IOException e) {
             e.printStackTrace();
