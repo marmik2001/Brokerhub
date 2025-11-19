@@ -1,24 +1,20 @@
-// src/pages/HomePage.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import {
   type Holding,
+  type Position,
   fetchAggregateHoldings,
   fetchAggregatePositions,
 } from "../services/portfolioService";
-import StatCard from "../components/StatCard";
-import DataTable from "../components/DataTable";
-import EmptyState from "../components/EmptyState";
-import HoldingsSearchBar from "../components/HoldingsSearchBar";
-import FilterChips, { type FilterKey } from "../components/FilterChips";
+import HoldingsTab from "./HoldingTab";
+import PositionsTab from "./PositionTab";
+import FeedTab from "./FeedTab";
 import { toast } from "react-hot-toast";
+import { type FilterKey } from "../components/FilterChips";
 
 /**
- * HomePage with search + simple filter chips.
- * - Search filters by tradingSymbol or isin (case-insensitive substring)
- * - Filter chips: All / Profitable / Loss / Zero P&L
- *
- * Filtering is client-side and non-destructive.
+ * HomePage coordinates fetching and top-level tab selection.
+ * The actual UI for each tab is delegated to subcomponents.
  */
 
 const HomePage: React.FC = () => {
@@ -28,21 +24,22 @@ const HomePage: React.FC = () => {
   const [tab, setTab] = useState<"dashboard" | "positions" | "feed">(
     "dashboard"
   );
+
+  // raw data states
   const [holdings, setHoldings] = useState<Holding[]>([]);
-  const [positions, setPositions] = useState<Holding[]>([]);
+  const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // search & filter state
+  // search & filter state (shared between tabs)
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterKey>("ALL");
 
+  // fetch on tab change
   useEffect(() => {
     if (tab === "dashboard") {
       setLoading(true);
       fetchAggregateHoldings(accountId)
-        .then((h) => {
-          setHoldings(h || []);
-        })
+        .then((h) => setHoldings(h || []))
         .catch((err) => {
           console.error("Failed to load holdings", err);
           toast.error("Failed to load holdings");
@@ -59,7 +56,7 @@ const HomePage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, accountId]);
 
-  // derived filtered holdings using search + filter
+  // derived filtered holdings using search + filter (so parent can compute totals)
   const filteredHoldings = useMemo(() => {
     const q = (search || "").trim().toLowerCase();
     return holdings.filter((h) => {
@@ -72,7 +69,7 @@ const HomePage: React.FC = () => {
 
       // filter chips
       if (filter === "PROFIT") {
-        return (h.pnl ?? 0) >= 0;
+        return (h.pnl ?? 0) > 0;
       }
       if (filter === "LOSS") {
         return (h.pnl ?? 0) < 0;
@@ -122,110 +119,31 @@ const HomePage: React.FC = () => {
       </div>
 
       {tab === "dashboard" && (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <StatCard
-              title="Total Value"
-              value={`₹ ${totalValue.toLocaleString()}`}
-            />
-            <StatCard
-              title={`P&L (${
-                totalPnl >= 0 ? "Unrealised gain" : "Unrealised loss"
-              })`}
-              value={`₹ ${totalPnl.toLocaleString()}`}
-            />
-            <StatCard
-              title={currentAccount?.name ?? "Account"}
-              value={currentAccount?.description ?? ""}
-            />
-          </div>
-
-          <div>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between mb-3">
-              <div className="flex-1 min-w-0">
-                <HoldingsSearchBar initial={search} onSearch={setSearch} />
-              </div>
-              <div>
-                <FilterChips value={filter} onChange={setFilter} />
-              </div>
-            </div>
-
-            <h3 className="text-lg font-medium mb-2">Holdings</h3>
-            {loading ? (
-              <div className="p-6 bg-white border rounded">Loading...</div>
-            ) : filteredHoldings.length === 0 ? (
-              // if there are no holdings to display (after filters/search) show a lighter empty state:
-              holdings.length === 0 ? (
-                <EmptyState
-                  title="No holdings available"
-                  description="Connect a broker!"
-                />
-              ) : (
-                <div className="p-6 bg-white border rounded text-center text-gray-600">
-                  No holdings match your search / filters.
-                </div>
-              )
-            ) : (
-              <DataTable<Holding>
-                data={filteredHoldings}
-                columns={[
-                  {
-                    header: "Symbol",
-                    accessor: (r) => (
-                      <div className="font-medium">{r.tradingSymbol}</div>
-                    ),
-                  },
-                  { header: "ISIN", accessor: (r) => r.isin ?? "—" },
-                  { header: "Qty", accessor: (r) => r.quantity },
-                  {
-                    header: "Avg Price",
-                    accessor: (r) => (r.averagePrice ?? 0).toFixed(2),
-                  },
-                  {
-                    header: "Last Price",
-                    accessor: (r) => (r.lastPrice ?? 0).toFixed(2),
-                  },
-                  { header: "P&L", accessor: (r) => (r.pnl ?? 0).toFixed(2) },
-                ]}
-              />
-            )}
-          </div>
-        </>
+        <HoldingsTab
+          holdings={filteredHoldings}
+          loading={loading}
+          search={search}
+          onSearch={setSearch}
+          filter={filter}
+          onFilterChange={setFilter}
+          totalValue={totalValue}
+          totalPnl={totalPnl}
+          currentAccount={currentAccount}
+        />
       )}
 
       {tab === "positions" && (
-        <>
-          <h3 className="text-lg font-medium">Positions (Today)</h3>
-          {loading ? (
-            <div className="p-6 bg-white border rounded">Loading...</div>
-          ) : positions.length === 0 ? (
-            <EmptyState title="No positions" />
-          ) : (
-            <DataTable<Holding>
-              data={positions}
-              columns={[
-                { header: "Symbol", accessor: (r) => r.tradingSymbol },
-                { header: "Qty", accessor: (r) => r.quantity },
-                {
-                  header: "Value",
-                  accessor: (r) => (r.lastPrice ?? 0) * (r.quantity ?? 0),
-                },
-                { header: "P&L", accessor: (r) => r.pnl },
-                { header: "ISIN", accessor: (r) => r.isin ?? "—" },
-              ]}
-            />
-          )}
-        </>
+        <PositionsTab
+          positions={positions}
+          loading={loading}
+          search={search}
+          onSearch={setSearch}
+          filter={filter}
+          onFilterChange={setFilter}
+        />
       )}
 
-      {tab === "feed" && (
-        <div className="bg-white border rounded p-6">
-          <EmptyState
-            title="Coming soon..."
-            description="Activity feed & notifications will be added here."
-          />
-        </div>
-      )}
+      {tab === "feed" && <FeedTab />}
     </div>
   );
 };

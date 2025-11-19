@@ -1,4 +1,5 @@
 import api from "../api";
+
 /**
  * Lightweight portfolio types used by the dashboard.
  *
@@ -16,35 +17,43 @@ export type Holding = {
   dayChangePercentage: number;
 };
 
+export type Position = {
+  exchange: string;
+  tradingSymbol: string;
+  quantity: number;
+  averagePrice: number;
+  lastPrice: number;
+  pnl: number;
+  dayChange?: number;
+  dayChangePercentage?: number;
+};
+
 /**
  * Service to fetch aggregated holdings for an account.
- *
- * Assumptions:
- * - axios instance is exported from src/api (imported as `api`).
- * - endpoint: GET /api/accounts/{accountId}/aggregate-holdings
- * - If accountId is falsy, this returns an empty array immediately.
  */
-
 export async function fetchAggregateHoldings(
   accountId?: string
 ): Promise<Holding[]> {
   if (!accountId) return [];
   const url = `/accounts/${accountId}/aggregate-holdings`;
-  const resp = await api.get<Holding[]>(url);
-  return resp?.data ?? [];
+  try {
+    const resp = await api.get<Holding[]>(url);
+    return resp?.data ?? [];
+  } catch (err) {
+    return [];
+  }
 }
 
 /**
- * Fetch today's positions for the selected account.
- * Backend may not implement this yet — keep it safe by returning [] if missing.
+ * Service to fetch aggregated positions for an account.
  */
 export async function fetchAggregatePositions(
   accountId?: string
-): Promise<Holding[]> {
+): Promise<Position[]> {
   if (!accountId) return [];
   const url = `/accounts/${accountId}/aggregate-positions`;
   try {
-    const resp = await api.get<Holding[]>(url);
+    const resp = await api.get<Position[]>(url);
     return resp?.data ?? [];
   } catch (err) {
     return [];
