@@ -15,7 +15,6 @@ public class PositionItem {
     private String exchange; // e.g. NSE_EQ
     private String tradingSymbol; // e.g. WAAREEENER
     private String securityId; // from Dhan payload
-    private String isin; // optional (may be null)
 
     /* Quantity & Price */
     private int quantity; // netQty

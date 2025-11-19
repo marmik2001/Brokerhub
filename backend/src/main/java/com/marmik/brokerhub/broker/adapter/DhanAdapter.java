@@ -55,7 +55,6 @@ public class DhanAdapter {
                 .exchange(p.exchangeSegment)
                 .tradingSymbol(p.tradingSymbol)
                 .securityId(p.securityId)
-                .isin(null) // DhanPosition doesn't include an ISIN field; leave null for now
                 .quantity(p.netQty)
                 .averagePrice(avgPrice)
                 .lastPrice(lastPrice)

@@ -272,7 +272,7 @@ public class AccountPortfolioService {
         for (PositionItem p : combined) {
             String key = (p.getExchange() == null ? "" : p.getExchange()) + "::" + p.getTradingSymbol();
             PositionAccumulator a = acc.computeIfAbsent(key,
-                    k -> new PositionAccumulator(p.getExchange(), p.getTradingSymbol(), p.getIsin()));
+                    k -> new PositionAccumulator(p.getExchange(), p.getTradingSymbol()));
             a.add(p);
         }
 
@@ -365,7 +365,6 @@ public class AccountPortfolioService {
     private static class PositionAccumulator {
         private final String exchange;
         private final String tradingSymbol;
-        private final String isin;
 
         private long totalQty = 0;
         private double totalValue = 0.0; // sum(qty * avgPrice)
@@ -375,10 +374,9 @@ public class AccountPortfolioService {
         private double dayChange = 0.0;
         private double dayChangePercentage = 0.0;
 
-        PositionAccumulator(String exchange, String tradingSymbol, String isin) {
+        PositionAccumulator(String exchange, String tradingSymbol) {
             this.exchange = exchange;
             this.tradingSymbol = tradingSymbol;
-            this.isin = isin;
         }
 
         void add(PositionItem p) {
@@ -401,7 +399,6 @@ public class AccountPortfolioService {
             return AggregatedPosition.builder()
                     .exchange(exchange)
                     .tradingSymbol(tradingSymbol)
-                    .isin(isin)
                     .quantity(totalQty)
                     .averagePrice(avg)
                     .pnl(pnlSum)

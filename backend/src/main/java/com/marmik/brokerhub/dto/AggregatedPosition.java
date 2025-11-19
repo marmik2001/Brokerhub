@@ -12,7 +12,6 @@ import lombok.NoArgsConstructor;
 public class AggregatedPosition {
     private String exchange;
     private String tradingSymbol;
-    private String isin;
 
     // total aggregated quantity (sum of netQtys)
     private long quantity;
