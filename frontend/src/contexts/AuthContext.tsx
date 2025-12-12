@@ -19,6 +19,8 @@ interface AuthContextType {
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  // new: allow updating rules for an account (minimal helper)
+  updateAccountRules: (accountId: string, rules: any) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -153,6 +155,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     await changePassword({ oldPassword, newPassword });
   };
 
+  const updateAccountRules = (accountId: string, rules: any) => {
+    const updatedAccounts = accounts.map((a) =>
+      a.accountId === accountId ? { ...a, rules } : a
+    );
+    setAccounts(updatedAccounts);
+
+    if (currentAccount && currentAccount.accountId === accountId) {
+      setCurrentAccount({ ...currentAccount, rules });
+      // Also persist currentAccount so selection survives reload
+      const persistent = {
+        token,
+        user,
+        currentAccount: { ...currentAccount, rules },
+      };
+      persist(persistent);
+    }
+  };
+
   const isAdmin = currentAccount?.role === "ADMIN";
 
   return (
@@ -170,6 +190,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         changePassword: handleChangePassword,
         isAuthenticated: !!token,
         isAdmin,
+        updateAccountRules,
       }}
     >
       {children}

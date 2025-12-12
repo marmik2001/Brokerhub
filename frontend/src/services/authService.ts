@@ -13,7 +13,7 @@ export interface AuthUser {
 }
 
 /**
- * AccountSummary now includes name/description and optionally accountMemberId
+ * AccountSummary includes name/description and accountMemberId
  * so frontend components (SelectAccount) can render full info returned by GET /api/accounts.
  */
 export interface AccountSummary {
@@ -21,7 +21,8 @@ export interface AccountSummary {
   name?: string;
   description?: string;
   role: "ADMIN" | "MEMBER";
-  accountMemberId?: string;
+  accountMemberId: string;
+  rules?: { privacy?: "DETAILED" | "SUMMARY" | "PRIVATE" } | any;
 }
 
 /**
@@ -75,5 +76,22 @@ export async function registerUser(
   req: RegisterUserRequest
 ): Promise<RegisterUserResponse> {
   const { data } = await api.post<RegisterUserResponse>("/user/register", req);
+  return data;
+}
+
+/**
+ * PATCH /api/accounts/{accountId}/members/{memberId}/rule
+ * Minimal wrapper to update member privacy.
+ * Expects server to return updated member payload { memberId, accountId, rules }
+ */
+export async function updateMemberRule(
+  accountId: string,
+  accountMemberId: string,
+  privacy: "DETAILED" | "SUMMARY" | "PRIVATE"
+) {
+  const { data } = await api.patch(
+    `/accounts/${accountId}/members/${accountMemberId}/rule`,
+    { privacy }
+  );
   return data;
 }

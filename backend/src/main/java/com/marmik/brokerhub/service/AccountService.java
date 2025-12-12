@@ -55,7 +55,8 @@ public class AccountService {
         member.setAccountId(accUuid);
         member.setUser(user);
         member.setRole("MEMBER");
-        member.setRules("{}");
+        // default privacy is DETAILED
+        member.setRules("{\"privacy\":\"DETAILED\"}");
 
         return memberRepo.save(member);
     }
@@ -81,7 +82,8 @@ public class AccountService {
         admin.setAccountId(account.getId());
         admin.setUser(user);
         admin.setRole("ADMIN");
-        admin.setRules("{}");
+        // default privacy is DETAILED
+        admin.setRules("{\"privacy\":\"DETAILED\"}");
         memberRepo.save(admin);
 
         return admin;
@@ -130,6 +132,29 @@ public class AccountService {
     @Transactional(readOnly = true)
     public Optional<Account> getAccountById(UUID accountId) {
         return accountRepo.findById(accountId);
+    }
+
+    /**
+     * Update privacy inside the member.rules JSON.
+     * Allowed values: DETAILED, SUMMARY, PRIVATE
+     * Throws IllegalArgumentException for invalid privacy or missing member.
+     */
+    @Transactional
+    public AccountMember updateMemberPrivacy(UUID accountId, UUID memberId, String privacy) {
+        if (privacy == null) {
+            throw new IllegalArgumentException("privacy is required");
+        }
+        String up = privacy.toUpperCase();
+        if (!(up.equals("DETAILED") || up.equals("SUMMARY") || up.equals("PRIVATE"))) {
+            throw new IllegalArgumentException("Invalid privacy value");
+        }
+
+        AccountMember member = memberRepo.findByIdAndAccountId(memberId, accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Member not found for this account"));
+
+        // naive JSON set: replace or set rules to {"privacy":"VALUE"}
+        member.setRules("{\"privacy\":\"" + up + "\"}");
+        return memberRepo.save(member);
     }
 
 }

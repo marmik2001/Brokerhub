@@ -11,7 +11,7 @@ type Props = {
 const SearchBar: React.FC<Props> = ({
   initial = "",
   onSearch,
-  placeholder = "Search by symbol or ISIN",
+  placeholder = "Search holdings by symbol or ISIN",
   ariaLabel = "Search",
 }) => {
   const [q, setQ] = useState(initial);

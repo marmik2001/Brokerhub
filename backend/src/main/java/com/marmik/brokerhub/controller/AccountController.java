@@ -43,6 +43,9 @@ public class AccountController {
     public static record RoleUpdateRequest(String role) {
     }
 
+    public static record PrivacyUpdateRequest(String privacy) {
+    }
+
     /** Authenticated: create a new account for current user as ADMIN. */
     @PostMapping
     public ResponseEntity<?> createAccount(
@@ -265,9 +268,52 @@ public class AccountController {
             map.put("description", accOpt.map(Account::getDescription).orElse(null));
             map.put("role", m.getRole());
             map.put("accountMemberId", m.getId());
+            map.put("rules", m.getRules());
             return map;
         }).collect(Collectors.toList());
 
         return ResponseEntity.ok(payload);
+    }
+
+    /**
+     * Authenticated: allow a user to update their own membership rule (privacy).
+     */
+    @PatchMapping("/{accountId}/members/{memberId}/rule")
+    public ResponseEntity<?> updateMemberRule(@PathVariable String accountId,
+            @PathVariable String memberId,
+            @RequestBody PrivacyUpdateRequest body,
+            @RequestHeader("Authorization") String authHeader) {
+        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
+            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
+        }
+        String token = authHeader.substring(7).trim();
+        String userIdStr = jwtUtil.getUserId(token).orElse(null);
+        if (userIdStr == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
+        }
+
+        UUID userId = UUID.fromString(userIdStr);
+        UUID accId = UUID.fromString(accountId);
+        UUID memId = UUID.fromString(memberId);
+
+        // Only allow a user to modify their own membership rules (not other members)
+        Optional<AccountMember> membershipOpt = memberRepo.findByIdAndAccountId(memId, accId);
+        if (membershipOpt.isEmpty()) {
+            return ResponseEntity.status(404).body(Map.of("error", "Member not found for this account"));
+        }
+        AccountMember membership = membershipOpt.get();
+        if (!membership.getUser().getId().equals(userId)) {
+            return ResponseEntity.status(403).body(Map.of("error", "Can only modify your own membership settings"));
+        }
+
+        try {
+            AccountMember updated = accountService.updateMemberPrivacy(accId, memId, body.privacy());
+            return ResponseEntity.ok(Map.of(
+                    "memberId", updated.getId(),
+                    "accountId", updated.getAccountId(),
+                    "rules", updated.getRules()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 }

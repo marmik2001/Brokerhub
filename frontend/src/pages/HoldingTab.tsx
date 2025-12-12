@@ -59,7 +59,7 @@ const HoldingsTab: React.FC<Props> = ({
             <SearchBar
               initial={search}
               onSearch={onSearch}
-              placeholder="Search by symbol or ISIN"
+              placeholder="Search holdings by symbol or ISIN"
               ariaLabel="Search holdings"
             />
           </div>
