@@ -3,12 +3,10 @@ package com.marmik.brokerhub.controller;
 import com.marmik.brokerhub.service.AccountPortfolioService;
 import com.marmik.brokerhub.service.AccountAccessValidator;
 import com.marmik.brokerhub.security.JwtUtil;
-import com.marmik.brokerhub.dto.AggregatedHolding;
-import com.marmik.brokerhub.dto.AggregatedPosition;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -20,7 +18,8 @@ public class AccountPortfolioController {
     private final JwtUtil jwtUtil;
     private final AccountAccessValidator accessValidator;
 
-    public AccountPortfolioController(AccountPortfolioService portfolioService,
+    public AccountPortfolioController(
+            AccountPortfolioService portfolioService,
             JwtUtil jwtUtil,
             AccountAccessValidator accessValidator) {
         this.portfolioService = portfolioService;
@@ -67,10 +66,10 @@ public class AccountPortfolioController {
             return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
         }
 
-        // Delegate to service; service will handle concurrent fetching and aggregation.
-        List<AggregatedHolding> aggregated = portfolioService.aggregateHoldingsForAccount(accId, userId);
+        // returns Map { full: [...], partial: [...] }
+        Map<String, Object> result = portfolioService.aggregateHoldingsForAccount(accId, userId);
 
-        return ResponseEntity.ok(aggregated);
+        return ResponseEntity.ok(result);
     }
 
     /**
@@ -103,17 +102,16 @@ public class AccountPortfolioController {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid UUID"));
         }
 
-        // ensure caller is a member of the account (throws AccessDeniedException if
-        // not)
+        // ensure caller is a member of the account
         try {
             accessValidator.requireMembership(userId, accId);
         } catch (org.springframework.security.access.AccessDeniedException ex) {
             return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
         }
 
-        // Delegate to service; service will handle concurrent fetching and aggregation.
-        List<AggregatedPosition> aggregated = portfolioService.aggregatePositionsForAccount(accId, userId);
+        // returns Map { full: [...], partial: [...] }
+        Map<String, Object> result = portfolioService.aggregatePositionsForAccount(accId, userId);
 
-        return ResponseEntity.ok(aggregated);
+        return ResponseEntity.ok(result);
     }
 }

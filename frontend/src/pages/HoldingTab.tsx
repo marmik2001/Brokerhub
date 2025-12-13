@@ -8,7 +8,8 @@ import TableValueCell from "../components/TableValueCell";
 import { type Holding } from "../services/portfolioService";
 
 type Props = {
-  holdings: Holding[]; // already filtered by parent
+  holdings: Holding[];
+  partialTickers: string[];
   loading: boolean;
   search: string;
   onSearch: (s: string) => void;
@@ -23,6 +24,7 @@ const HOLDINGS_FILTERS: FilterKey[] = ["ALL", "PROFIT", "LOSS"];
 
 const HoldingsTab: React.FC<Props> = ({
   holdings,
+  partialTickers,
   loading,
   search,
   onSearch,
@@ -62,6 +64,12 @@ const HoldingsTab: React.FC<Props> = ({
               placeholder="Search holdings by symbol or ISIN"
               ariaLabel="Search holdings"
             />
+            {partialTickers.length > 0 && (
+              <div className="text-sm text-gray-500 mt-1">
+                Held privately by other group members:{" "}
+                {partialTickers.join(", ")}
+              </div>
+            )}
           </div>
           <div>
             <FilterChips

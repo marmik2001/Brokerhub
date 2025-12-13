@@ -28,19 +28,24 @@ export type Position = {
   dayChangePercentage?: number;
 };
 
+export type AggregatedResponse<T> = {
+  full: T[];
+  partial: string[];
+};
+
 /**
  * Service to fetch aggregated holdings for an account.
  */
 export async function fetchAggregateHoldings(
   accountId?: string
-): Promise<Holding[]> {
-  if (!accountId) return [];
+): Promise<AggregatedResponse<Holding>> {
+  if (!accountId) return { full: [], partial: [] };
   const url = `/accounts/${accountId}/aggregate-holdings`;
   try {
-    const resp = await api.get<Holding[]>(url);
-    return resp?.data ?? [];
-  } catch (err) {
-    return [];
+    const resp = await api.get<AggregatedResponse<Holding>>(url);
+    return resp?.data ?? { full: [], partial: [] };
+  } catch {
+    return { full: [], partial: [] };
   }
 }
 
@@ -49,13 +54,13 @@ export async function fetchAggregateHoldings(
  */
 export async function fetchAggregatePositions(
   accountId?: string
-): Promise<Position[]> {
-  if (!accountId) return [];
+): Promise<AggregatedResponse<Position>> {
+  if (!accountId) return { full: [], partial: [] };
   const url = `/accounts/${accountId}/aggregate-positions`;
   try {
-    const resp = await api.get<Position[]>(url);
-    return resp?.data ?? [];
-  } catch (err) {
-    return [];
+    const resp = await api.get<AggregatedResponse<Position>>(url);
+    return resp?.data ?? { full: [], partial: [] };
+  } catch {
+    return { full: [], partial: [] };
   }
 }

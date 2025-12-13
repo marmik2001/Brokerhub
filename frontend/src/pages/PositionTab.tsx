@@ -8,7 +8,8 @@ import StatCard from "../components/StatCard";
 import { type Position } from "../services/portfolioService";
 
 type Props = {
-  positions: Position[]; // raw positions from backend
+  positions: Position[];
+  partialTickers: string[];
   loading: boolean;
   search: string;
   onSearch: (s: string) => void;
@@ -26,13 +27,13 @@ const POSITIONS_FILTERS: FilterKey[] = [
 
 const PositionsTab: React.FC<Props> = ({
   positions,
+  partialTickers,
   loading,
   search,
   onSearch,
   filter,
   onFilterChange,
 }) => {
-  // client-side filtering for positions
   const filtered = useMemo(() => {
     const q = (search || "").trim().toLowerCase();
     return positions.filter((p) => {
@@ -49,7 +50,6 @@ const PositionsTab: React.FC<Props> = ({
     });
   }, [positions, search, filter]);
 
-  // totals for stat cards (computed from filtered set)
   const totalValue = useMemo(() => {
     return filtered.reduce((s, p) => {
       const last = p.lastPrice ?? p.averagePrice ?? 0;
@@ -80,7 +80,7 @@ const PositionsTab: React.FC<Props> = ({
             />
           }
         />
-        <div className="p-2" /> {/* placeholder to keep grid consistent */}
+        <div className="p-2" />
       </div>
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between mb-3">
@@ -91,6 +91,11 @@ const PositionsTab: React.FC<Props> = ({
             placeholder="Search positions by symbol or ISIN"
             ariaLabel="Search positions"
           />
+          {partialTickers.length > 0 && (
+            <div className="text-sm text-gray-500 mt-1">
+              Held privately by other group members: {partialTickers.join(", ")}
+            </div>
+          )}
         </div>
         <div>
           <FilterChips

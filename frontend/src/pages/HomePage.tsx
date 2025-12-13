@@ -12,11 +12,6 @@ import FeedTab from "./FeedTab";
 import { toast } from "react-hot-toast";
 import { type FilterKey } from "../components/FilterChips";
 
-/**
- * HomePage coordinates fetching and top-level tab selection.
- * The actual UI for each tab is delegated to subcomponents.
- */
-
 const HomePage: React.FC = () => {
   const { currentAccount } = useAuth();
   const accountId = currentAccount?.accountId;
@@ -25,56 +20,56 @@ const HomePage: React.FC = () => {
     "dashboard"
   );
 
-  // raw data states
   const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [partialHoldings, setPartialHoldings] = useState<string[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
+  const [partialPositions, setPartialPositions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // search & filter state (shared between tabs)
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterKey>("ALL");
 
-  // fetch on tab change
   useEffect(() => {
     if (tab === "dashboard") {
       setLoading(true);
       fetchAggregateHoldings(accountId)
-        .then((h) => setHoldings(h || []))
-        .catch((err) => {
-          console.error("Failed to load holdings", err);
-          toast.error("Failed to load holdings");
+        .then((res) => {
+          setHoldings(res.full || []);
+          setPartialHoldings(res.partial || []);
+        })
+        .catch(() => {
           setHoldings([]);
+          setPartialHoldings([]);
+          toast.error("Failed to load holdings");
         })
         .finally(() => setLoading(false));
     } else if (tab === "positions") {
       setLoading(true);
       fetchAggregatePositions(accountId)
-        .then((p) => setPositions(p || []))
-        .catch(() => setPositions([]))
+        .then((res) => {
+          setPositions(res.full || []);
+          setPartialPositions(res.partial || []);
+        })
+        .catch(() => {
+          setPositions([]);
+          setPartialPositions([]);
+        })
         .finally(() => setLoading(false));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, accountId]);
 
-  // derived filtered holdings using search + filter (so parent can compute totals)
   const filteredHoldings = useMemo(() => {
     const q = (search || "").trim().toLowerCase();
     return holdings.filter((h) => {
-      // search match
       if (q) {
         const sym = (h.tradingSymbol ?? "").toLowerCase();
         const isin = (h.isin ?? "").toLowerCase();
         if (!sym.includes(q) && !isin.includes(q)) return false;
       }
 
-      // filter chips
-      if (filter === "PROFIT") {
-        return (h.pnl ?? 0) > 0;
-      }
-      if (filter === "LOSS") {
-        return (h.pnl ?? 0) < 0;
-      }
-      return true; // ALL
+      if (filter === "PROFIT") return (h.pnl ?? 0) > 0;
+      if (filter === "LOSS") return (h.pnl ?? 0) < 0;
+      return true;
     });
   }, [holdings, search, filter]);
 
@@ -121,6 +116,7 @@ const HomePage: React.FC = () => {
       {tab === "dashboard" && (
         <HoldingsTab
           holdings={filteredHoldings}
+          partialTickers={partialHoldings}
           loading={loading}
           search={search}
           onSearch={setSearch}
@@ -135,6 +131,7 @@ const HomePage: React.FC = () => {
       {tab === "positions" && (
         <PositionsTab
           positions={positions}
+          partialTickers={partialPositions}
           loading={loading}
           search={search}
           onSearch={setSearch}
