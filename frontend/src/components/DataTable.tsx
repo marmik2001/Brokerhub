@@ -1,59 +1,97 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 
 type Column<T> = {
   header: string;
   accessor: (row: T) => React.ReactNode;
   key?: string;
-};
-
-type DefaultSort<T> = {
-  accessor: (row: T) => number;
-  direction?: "asc" | "desc";
+  sortValue?: (row: T) => string | number;
+  disableSort?: boolean;
 };
 
 const DataTable = <T,>({
   data,
   columns,
-  defaultSort,
 }: {
   data: T[];
   columns: Column<T>[];
-  /**
-   * Optional: default numeric sort. Provide an accessor that returns a number for the column
-   * you want sorted. If not provided, rows retain original order.
-   */
-  defaultSort?: DefaultSort<T>;
 }) => {
-  const sortedData = useMemo(() => {
-    if (!defaultSort) return data;
-    const { accessor, direction = "desc" } = defaultSort;
+  const [sort, setSort] = useState<{
+    index: number;
+    direction: "asc" | "desc";
+  } | null>(null);
 
-    // create a shallow copy so we don't mutate props
+  const sortedData = useMemo(() => {
+    if (!sort) return data;
+
+    const col = columns[sort.index];
+    if (col.disableSort || !col.sortValue) return data;
+
     const copy = [...data];
+
     copy.sort((a, b) => {
-      const va = accessor(a) ?? 0;
-      const vb = accessor(b) ?? 0;
-      if (va === vb) return 0;
-      return direction === "asc" ? va - vb : vb - va;
+      const va = col.sortValue!(a);
+      const vb = col.sortValue!(b);
+
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+
+      if (typeof va === "number" && typeof vb === "number") {
+        return sort.direction === "asc" ? va - vb : vb - va;
+      }
+
+      return sort.direction === "asc"
+        ? String(va).localeCompare(String(vb))
+        : String(vb).localeCompare(String(va));
     });
+
     return copy;
-  }, [data, defaultSort]);
+  }, [data, sort, columns]);
 
   return (
     <div className="overflow-x-auto bg-white rounded-lg border">
       <table className="min-w-full text-sm">
         <thead className="bg-gray-50">
           <tr>
-            {columns.map((c, i) => (
-              <th
-                key={c.key ?? i}
-                className="px-4 py-3 text-left text-xs font-medium text-gray-500"
-              >
-                {c.header}
-              </th>
-            ))}
+            {columns.map((c, i) => {
+              const sortable = !c.disableSort && !!c.sortValue;
+              const active = sort?.index === i;
+
+              return (
+                <th
+                  key={c.key ?? i}
+                  onClick={() => {
+                    if (!sortable) return;
+
+                    setSort((prev) => {
+                      if (prev?.index === i) {
+                        return {
+                          index: i,
+                          direction: prev.direction === "asc" ? "desc" : "asc",
+                        };
+                      }
+                      return { index: i, direction: "desc" };
+                    });
+                  }}
+                  className={[
+                    "px-4 py-3 text-left text-xs font-medium text-gray-500",
+                    sortable && "cursor-pointer select-none",
+                  ].join(" ")}
+                >
+                  <span className="flex items-center gap-1">
+                    {c.header}
+                    {active && (
+                      <span className="text-gray-400">
+                        {sort!.direction === "asc" ? "▲" : "▼"}
+                      </span>
+                    )}
+                  </span>
+                </th>
+              );
+            })}
           </tr>
         </thead>
+
         <tbody>
           {sortedData.length === 0 ? (
             <tr>

@@ -115,50 +115,46 @@ const PositionsTab: React.FC<Props> = ({
       ) : (
         <DataTable<Position>
           data={filtered}
-          defaultSort={{
-            accessor: (r) => {
-              const last = r.lastPrice ?? r.averagePrice ?? 0;
-              return last * (r.quantity ?? 0);
-            },
-            direction: "desc",
-          }}
           columns={[
-            { header: "Symbol", accessor: (r) => r.tradingSymbol },
-            { header: "Qty", accessor: (r) => r.quantity },
+            {
+              header: "Symbol",
+              accessor: (r) => r.tradingSymbol,
+              sortValue: (r) => r.tradingSymbol,
+            },
+            {
+              header: "Qty",
+              accessor: (r) => r.quantity,
+              sortValue: (r) => r.quantity ?? 0,
+            },
             {
               header: "Avg Price",
               accessor: (r) => (
-                <TableValueCell value={r.averagePrice} currency={true} />
+                <TableValueCell value={r.averagePrice} currency />
               ),
+              sortValue: (r) => r.averagePrice ?? 0,
             },
             {
               header: "Last Price",
-              accessor: (r) => (
-                <TableValueCell value={r.lastPrice} currency={true} />
-              ),
+              accessor: (r) => <TableValueCell value={r.lastPrice} currency />,
+              sortValue: (r) => r.lastPrice ?? 0,
             },
             {
               header: "Value",
               accessor: (r) => {
                 const last = r.lastPrice ?? r.averagePrice ?? 0;
                 return (
-                  <TableValueCell
-                    value={last * (r.quantity ?? 0)}
-                    currency={true}
-                  />
+                  <TableValueCell value={last * (r.quantity ?? 0)} currency />
                 );
               },
+              sortValue: (r) =>
+                (r.lastPrice ?? r.averagePrice ?? 0) * (r.quantity ?? 0),
             },
             {
               header: "P&L",
               accessor: (r) => (
-                <TableValueCell
-                  value={r.pnl}
-                  currency={true}
-                  colorize={true}
-                  parenNegative={true}
-                />
+                <TableValueCell value={r.pnl} currency colorize parenNegative />
               ),
+              sortValue: (r) => r.pnl ?? 0,
             },
           ]}
         />

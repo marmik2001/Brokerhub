@@ -98,31 +98,43 @@ const HoldingsTab: React.FC<Props> = ({
                 accessor: (r) => (
                   <div className="font-medium">{r.tradingSymbol}</div>
                 ),
+                sortValue: (r) => r.tradingSymbol,
               },
-              { header: "ISIN", accessor: (r) => r.isin ?? "—" },
-              { header: "Qty", accessor: (r) => r.quantity },
+              {
+                header: "ISIN",
+                accessor: (r) => r.isin ?? "—",
+                sortValue: (r) => r.isin ?? "",
+              },
+              {
+                header: "Qty",
+                accessor: (r) => r.quantity,
+                sortValue: (r) => r.quantity ?? 0,
+              },
               {
                 header: "Avg Price",
                 accessor: (r) => (
-                  <TableValueCell value={r.averagePrice} currency={true} />
+                  <TableValueCell value={r.averagePrice} currency />
                 ),
+                sortValue: (r) => r.averagePrice ?? 0,
               },
               {
                 header: "Last Price",
                 accessor: (r) => (
-                  <TableValueCell value={r.lastPrice} currency={true} />
+                  <TableValueCell value={r.lastPrice} currency />
                 ),
+                sortValue: (r) => r.lastPrice ?? 0,
               },
               {
                 header: "P&L",
                 accessor: (r) => (
                   <TableValueCell
                     value={r.pnl}
-                    currency={true}
-                    colorize={true}
-                    parenNegative={true}
+                    currency
+                    colorize
+                    parenNegative
                   />
                 ),
+                sortValue: (r) => r.pnl ?? 0,
               },
             ]}
           />

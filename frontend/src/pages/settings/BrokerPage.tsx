@@ -98,8 +98,16 @@ const SettingsBrokerPage: React.FC = () => {
             <DataTable<BrokerCredential>
               data={credentials}
               columns={[
-                { header: "Nickname", accessor: (r) => r.nickname },
-                { header: "Broker", accessor: (r) => r.broker },
+                {
+                  header: "Nickname",
+                  accessor: (r) => r.nickname,
+                  sortValue: (r) => r.nickname,
+                },
+                {
+                  header: "Broker",
+                  accessor: (r) => r.broker,
+                  sortValue: (r) => r.broker,
+                },
                 {
                   header: "Actions",
                   accessor: (r) => (
@@ -110,6 +118,7 @@ const SettingsBrokerPage: React.FC = () => {
                       Remove
                     </button>
                   ),
+                  disableSort: true,
                 },
               ]}
             />

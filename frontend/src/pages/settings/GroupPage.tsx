@@ -111,9 +111,21 @@ const GroupPage: React.FC = () => {
         <DataTable<Member>
           data={members}
           columns={[
-            { header: "Name", accessor: (m) => m.memberName },
-            { header: "Login ID", accessor: (m) => m.loginId },
-            { header: "Email", accessor: (m) => m.email || "—" },
+            {
+              header: "Name",
+              accessor: (m) => m.memberName,
+              sortValue: (m) => m.memberName,
+            },
+            {
+              header: "Login ID",
+              accessor: (m) => m.loginId,
+              sortValue: (m) => m.loginId,
+            },
+            {
+              header: "Email",
+              accessor: (m) => m.email || "—",
+              sortValue: (m) => m.email || "",
+            },
             {
               header: "Role",
               accessor: (m) =>
@@ -135,6 +147,7 @@ const GroupPage: React.FC = () => {
                 ) : (
                   m.role
                 ),
+              disableSort: true,
             },
             ...(isAdmin
               ? [
@@ -149,6 +162,7 @@ const GroupPage: React.FC = () => {
                         Remove
                       </button>
                     ),
+                    disableSort: true,
                   },
                 ]
               : []),
