@@ -1,8 +1,6 @@
 package com.marmik.brokerhub.controller;
 
-import com.marmik.brokerhub.model.Account;
 import com.marmik.brokerhub.model.AccountMember;
-import com.marmik.brokerhub.repository.AccountMemberRepository;
 import com.marmik.brokerhub.service.AccountAccessValidator;
 import com.marmik.brokerhub.service.AccountService;
 
@@ -10,31 +8,27 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/accounts")
 public class AccountController {
 
     private final AccountService accountService;
-    private final AccountMemberRepository memberRepo;
     private final AccountAccessValidator accessValidator;
 
-    public AccountController(AccountService accountService,
-            AccountMemberRepository memberRepo,
+    public AccountController(
+            AccountService accountService,
             AccountAccessValidator accessValidator) {
         this.accountService = accountService;
-        this.memberRepo = memberRepo;
         this.accessValidator = accessValidator;
     }
 
     public static record CreateAccountRequest(String accountName, String accountDesc) {
     }
 
-    public record AddMemberRequest(
-            String loginId,
-            String email) {
+    public record AddMemberRequest(String loginId, String email) {
     }
 
     public static record RoleUpdateRequest(String role) {
@@ -43,55 +37,43 @@ public class AccountController {
     public static record PrivacyUpdateRequest(String privacy) {
     }
 
-    /** Authenticated: create a new account for current user as ADMIN. */
+    /** Create a new account (caller becomes ADMIN). */
     @PostMapping
     public ResponseEntity<?> createAccount(
             @RequestBody CreateAccountRequest req,
             @AuthenticationPrincipal String userId) {
 
-        try {
-            UUID caller = UUID.fromString(userId);
-            AccountMember admin = accountService.createAccountForUser(
-                    caller,
-                    req.accountName(),
-                    req.accountDesc());
+        UUID caller = UUID.fromString(userId);
+        AccountMember admin = accountService.createAccountForUser(
+                caller, req.accountName(), req.accountDesc());
 
-            return ResponseEntity.ok(Map.of(
-                    "accountId", admin.getAccountId(),
-                    "name", req.accountName(),
-                    "role", admin.getRole()));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+        return ResponseEntity.ok(Map.of(
+                "accountId", admin.getAccountId(),
+                "name", req.accountName(),
+                "role", admin.getRole()));
     }
 
-    /** Authenticated: list all members for the account (ADMIN only). */
+    /** List members for an account (ADMIN only). */
     @GetMapping("/{accountId}/members")
-    public ResponseEntity<?> listMembers(@PathVariable String accountId,
+    public ResponseEntity<?> listMembers(
+            @PathVariable String accountId,
             @AuthenticationPrincipal String userId) {
 
         UUID caller = UUID.fromString(userId);
         UUID accId = UUID.fromString(accountId);
 
-        try {
-            accessValidator.requireRole(caller, accId, "ADMIN");
-        } catch (org.springframework.security.access.AccessDeniedException ex) {
-            return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
-        }
+        accessValidator.requireRole(caller, accId, "ADMIN");
 
-        List<AccountMember> members = accountService.listMembers(accId);
-
-        var payload = members.stream().map(m -> Map.of(
-                "memberId", m.getId(),
-                "loginId", m.getUser().getLoginId(),
-                "email", m.getUser().getEmail(),
-                "memberName", m.getUser().getMemberName(),
-                "role", m.getRole())).collect(Collectors.toList());
-
-        return ResponseEntity.ok(payload);
+        return ResponseEntity.ok(
+                accountService.listMembers(accId).stream().map(m -> Map.of(
+                        "memberId", m.getId(),
+                        "loginId", m.getUser().getLoginId(),
+                        "email", m.getUser().getEmail(),
+                        "memberName", m.getUser().getMemberName(),
+                        "role", m.getRole())).toList());
     }
 
-    /** Authenticated: add member to an account (ADMIN only). */
+    /** Add member to account (ADMIN only). */
     @PostMapping("/{accountId}/members")
     public ResponseEntity<?> addMember(
             @PathVariable String accountId,
@@ -101,36 +83,24 @@ public class AccountController {
         UUID caller = UUID.fromString(userId);
         UUID accId = UUID.fromString(accountId);
 
-        try {
-            accessValidator.requireRole(caller, accId, "ADMIN");
-        } catch (org.springframework.security.access.AccessDeniedException ex) {
-            return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
-        }
+        accessValidator.requireRole(caller, accId, "ADMIN");
 
-        try {
-            AccountMember member = accountService.addMember(
-                    accountId,
-                    req.loginId(),
-                    req.email());
-            return ResponseEntity.ok(Map.of(
-                    "memberId", member.getId(),
-                    "accountId", member.getAccountId(),
-                    "role", member.getRole(),
-                    "loginId", member.getUser().getLoginId(),
-                    "email", member.getUser().getEmail(),
-                    "memberName", member.getUser().getMemberName()));
-        } catch (IllegalArgumentException e) {
-            String msg = e.getMessage();
-            if (msg != null && msg.toLowerCase().contains("already")) {
-                return ResponseEntity.status(409).body(Map.of("error", msg));
-            }
-            return ResponseEntity.badRequest().body(Map.of("error", msg));
-        }
+        AccountMember member = accountService.addMember(
+                accountId, req.loginId(), req.email());
+
+        return ResponseEntity.ok(Map.of(
+                "memberId", member.getId(),
+                "accountId", member.getAccountId(),
+                "role", member.getRole(),
+                "loginId", member.getUser().getLoginId(),
+                "email", member.getUser().getEmail(),
+                "memberName", member.getUser().getMemberName()));
     }
 
-    /** Authenticated: update a member's role (ADMIN only). */
+    /** Update member role (ADMIN only). */
     @PatchMapping("/{accountId}/members/{memberId}/role")
-    public ResponseEntity<?> updateMemberRole(@PathVariable String accountId,
+    public ResponseEntity<?> updateMemberRole(
+            @PathVariable String accountId,
             @PathVariable String memberId,
             @RequestBody RoleUpdateRequest body,
             @AuthenticationPrincipal String userId) {
@@ -139,36 +109,21 @@ public class AccountController {
         UUID accId = UUID.fromString(accountId);
         UUID memId = UUID.fromString(memberId);
 
-        try {
-            accessValidator.requireRole(caller, accId, "ADMIN");
-        } catch (org.springframework.security.access.AccessDeniedException ex) {
-            return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
-        }
+        accessValidator.requireRole(caller, accId, "ADMIN");
 
-        try {
-            // safety: prevent admin from demoting themselves
-            Optional<AccountMember> currentMembership = memberRepo.findByUserIdAndAccountId(caller, accId);
-            if (currentMembership.isPresent() && currentMembership.get().getId().equals(memId)) {
-                // attempting to update own role
-                if (!"ADMIN".equalsIgnoreCase(body.role())) {
-                    return ResponseEntity.status(409).body(Map.of("error", "Cannot demote yourself"));
-                }
-                // else setting own role to ADMIN is no-op
-            }
+        AccountMember updated = accountService.updateMemberRole(
+                caller, accId, memId, body.role());
 
-            AccountMember updated = accountService.updateMemberRole(accId, memId, body.role());
-            return ResponseEntity.ok(Map.of(
-                    "memberId", updated.getId(),
-                    "accountId", updated.getAccountId(),
-                    "role", updated.getRole()));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
-        }
+        return ResponseEntity.ok(Map.of(
+                "memberId", updated.getId(),
+                "accountId", updated.getAccountId(),
+                "role", updated.getRole()));
     }
 
-    /** Authenticated: remove member from account (ADMIN only). */
+    /** Remove member (ADMIN only). */
     @DeleteMapping("/{accountId}/members/{memberId}")
-    public ResponseEntity<?> removeMember(@PathVariable String accountId,
+    public ResponseEntity<?> removeMember(
+            @PathVariable String accountId,
             @PathVariable String memberId,
             @AuthenticationPrincipal String userId) {
 
@@ -176,55 +131,26 @@ public class AccountController {
         UUID accId = UUID.fromString(accountId);
         UUID memId = UUID.fromString(memberId);
 
-        try {
-            accessValidator.requireRole(caller, accId, "ADMIN");
-        } catch (org.springframework.security.access.AccessDeniedException ex) {
-            return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
-        }
+        accessValidator.requireRole(caller, accId, "ADMIN");
 
-        try {
-            // prevent admin removing themselves
-            Optional<AccountMember> currentMembership = memberRepo.findByUserIdAndAccountId(caller, accId);
-            if (currentMembership.isPresent() && currentMembership.get().getId().equals(memId)) {
-                return ResponseEntity.status(409).body(Map.of("error", "Cannot remove yourself from the account"));
-            }
-
-            accountService.removeMember(accId, memId);
-            return ResponseEntity.ok(Map.of("message", "Member removed"));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
-        }
+        accountService.removeMember(caller, accId, memId);
+        return ResponseEntity.ok(Map.of("message", "Member removed"));
     }
 
-    /** Authenticated: list all accounts current user belongs to. */
+    /** List all accounts current user belongs to. */
     @GetMapping
-    public ResponseEntity<?> listUserAccounts(@AuthenticationPrincipal String userId) {
+    public ResponseEntity<?> listUserAccounts(
+            @AuthenticationPrincipal String userId) {
 
         UUID userUUID = UUID.fromString(userId);
-        List<AccountMember> memberships = memberRepo.findByUserId(userUUID);
-
-        var payload = memberships.stream().map(m -> {
-            // fetch account details if present
-            Optional<Account> accOpt = accountService.getAccountById(m.getAccountId());
-
-            Map<String, Object> map = new HashMap<>();
-            map.put("accountId", m.getAccountId());
-            map.put("name", accOpt.map(Account::getName).orElse(null));
-            map.put("description", accOpt.map(Account::getDescription).orElse(null));
-            map.put("role", m.getRole());
-            map.put("accountMemberId", m.getId());
-            map.put("rules", m.getRules());
-            return map;
-        }).collect(Collectors.toList());
-
-        return ResponseEntity.ok(payload);
+        return ResponseEntity.ok(
+                accountService.listUserAccountViews(userUUID));
     }
 
-    /**
-     * Authenticated: allow a user to update their own membership rule (privacy).
-     */
+    /** Update own membership privacy. */
     @PatchMapping("/{accountId}/members/{memberId}/rule")
-    public ResponseEntity<?> updateMemberRule(@PathVariable String accountId,
+    public ResponseEntity<?> updateMemberRule(
+            @PathVariable String accountId,
             @PathVariable String memberId,
             @RequestBody PrivacyUpdateRequest body,
             @AuthenticationPrincipal String userId) {
@@ -233,24 +159,12 @@ public class AccountController {
         UUID accId = UUID.fromString(accountId);
         UUID memId = UUID.fromString(memberId);
 
-        // Only allow a user to modify their own membership rules (not other members)
-        Optional<AccountMember> membershipOpt = memberRepo.findByIdAndAccountId(memId, accId);
-        if (membershipOpt.isEmpty()) {
-            return ResponseEntity.status(404).body(Map.of("error", "Member not found for this account"));
-        }
-        AccountMember membership = membershipOpt.get();
-        if (!membership.getUser().getId().equals(caller)) {
-            return ResponseEntity.status(403).body(Map.of("error", "Can only modify your own membership settings"));
-        }
+        AccountMember updated = accountService.updateOwnMemberPrivacy(
+                caller, accId, memId, body.privacy());
 
-        try {
-            AccountMember updated = accountService.updateMemberPrivacy(accId, memId, body.privacy());
-            return ResponseEntity.ok(Map.of(
-                    "memberId", updated.getId(),
-                    "accountId", updated.getAccountId(),
-                    "rules", updated.getRules()));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+        return ResponseEntity.ok(Map.of(
+                "memberId", updated.getId(),
+                "accountId", updated.getAccountId(),
+                "rules", updated.getRules()));
     }
 }

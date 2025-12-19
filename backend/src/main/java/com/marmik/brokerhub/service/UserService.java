@@ -9,7 +9,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class UserService {
@@ -18,7 +21,8 @@ public class UserService {
     private final AccountMemberRepository memberRepo;
     private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepo,
+    public UserService(
+            UserRepository userRepo,
             AccountMemberRepository memberRepo,
             PasswordEncoder passwordEncoder) {
         this.userRepo = userRepo;
@@ -28,44 +32,56 @@ public class UserService {
 
     /**
      * Returns user profile + all memberships.
+     * Throws IllegalArgumentException if user not found.
      */
-    public Optional<Map<String, Object>> getUserProfile(UUID userId) {
-        Optional<User> userOpt = userRepo.findById(userId);
-        if (userOpt.isEmpty())
-            return Optional.empty();
+    public Map<String, Object> getUserProfile(UUID userId) {
 
-        User user = userOpt.get();
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
         List<AccountMember> memberships = memberRepo.findByUserId(userId);
 
-        Map<String, Object> profile = new LinkedHashMap<>();
+        Map<String, Object> profile = new HashMap<>();
         profile.put("id", user.getId());
         profile.put("loginId", user.getLoginId());
         profile.put("email", user.getEmail());
         profile.put("name", user.getMemberName());
-        profile.put("accounts", memberships.stream().map(m -> Map.of(
-                "accountId", m.getAccountId(),
-                "role", m.getRole())).toList());
+        profile.put("accounts", memberships.stream().map(m -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("accountId", m.getAccountId());
+            map.put("role", m.getRole());
+            return map;
+        }).toList());
 
-        return Optional.of(profile);
+        return profile;
     }
 
     /**
-     * New: Register a new user (no account creation).
+     * Register a new user (no account creation).
      */
     @Transactional
-    public User registerUser(String loginId, String memberName, String email, String rawPassword) {
-        if (loginId == null || loginId.isBlank())
-            throw new IllegalArgumentException("loginId is required");
-        if (memberName == null || memberName.isBlank())
-            throw new IllegalArgumentException("memberName is required");
-        if (rawPassword == null || rawPassword.length() < 6)
-            throw new IllegalArgumentException("Password must be at least 6 characters");
+    public User registerUser(
+            String loginId,
+            String memberName,
+            String email,
+            String rawPassword) {
 
-        // Validate duplicates
-        if (email != null && userRepo.findByEmail(email).isPresent())
+        if (loginId == null || loginId.isBlank()) {
+            throw new IllegalArgumentException("loginId is required");
+        }
+        if (memberName == null || memberName.isBlank()) {
+            throw new IllegalArgumentException("memberName is required");
+        }
+        if (rawPassword == null || rawPassword.length() < 6) {
+            throw new IllegalArgumentException("Password must be at least 6 characters");
+        }
+
+        if (email != null && userRepo.findByEmail(email).isPresent()) {
             throw new IllegalArgumentException("Email already in use");
-        if (userRepo.findByLoginId(loginId).isPresent())
+        }
+        if (userRepo.findByLoginId(loginId).isPresent()) {
             throw new IllegalArgumentException("Login ID already exists");
+        }
 
         User user = new User();
         user.setLoginId(loginId);

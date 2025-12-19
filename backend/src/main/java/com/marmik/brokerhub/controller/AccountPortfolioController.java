@@ -45,13 +45,7 @@ public class AccountPortfolioController {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid UUID"));
         }
 
-        // ensure caller is a member of the account (throws AccessDeniedException if
-        // not)
-        try {
-            accessValidator.requireMembership(caller, accId);
-        } catch (org.springframework.security.access.AccessDeniedException ex) {
-            return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
-        }
+        accessValidator.requireMembership(caller, accId);
 
         // returns Map { full: [...], partial: [...] }
         Map<String, Object> result = portfolioService.aggregateHoldingsForAccount(accId, caller);
@@ -79,12 +73,7 @@ public class AccountPortfolioController {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid UUID"));
         }
 
-        // ensure caller is a member of the account
-        try {
-            accessValidator.requireMembership(caller, accId);
-        } catch (org.springframework.security.access.AccessDeniedException ex) {
-            return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
-        }
+        accessValidator.requireMembership(caller, accId);
 
         // returns Map { full: [...], partial: [...] }
         Map<String, Object> result = portfolioService.aggregatePositionsForAccount(accId, caller);

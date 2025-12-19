@@ -8,9 +8,11 @@ import com.marmik.brokerhub.repository.AccountRepository;
 import com.marmik.brokerhub.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,8 +27,6 @@ public class AccountService {
 
     /**
      * Add member to an existing account.
-     * If user not found => IllegalArgumentException("User does not exist...")
-     * If membership already exists => IllegalArgumentException("Already a member")
      */
     @Transactional
     public AccountMember addMember(
@@ -34,28 +34,24 @@ public class AccountService {
             String loginId,
             String email) {
 
-        // Find user by loginId or email (case insensitive)
         Optional<User> userOpt = userRepo.findByLoginIdOrEmailIgnoreCase(email != null ? email : loginId);
 
-        // If user not found -> throw exception
         if (userOpt.isEmpty()) {
-            throw new IllegalArgumentException("User does not exist. Please ask them to register first.");
+            throw new IllegalArgumentException(
+                    "User does not exist. Please ask them to register first.");
         }
 
         User user = userOpt.get();
         UUID accUuid = UUID.fromString(accountId);
 
-        // Check existing membership
         if (memberRepo.findByUserIdAndAccountId(user.getId(), accUuid).isPresent()) {
             throw new IllegalArgumentException("User is already a member of this account");
         }
 
-        // Create AccountMember entry
         AccountMember member = new AccountMember();
         member.setAccountId(accUuid);
         member.setUser(user);
         member.setRole("MEMBER");
-        // default privacy is DETAILED
         member.setRules("{\"privacy\":\"DETAILED\"}");
 
         return memberRepo.save(member);
@@ -65,7 +61,11 @@ public class AccountService {
      * Create a new account and link an existing user as ADMIN.
      */
     @Transactional
-    public AccountMember createAccountForUser(UUID userId, String accountName, String accountDesc) {
+    public AccountMember createAccountForUser(
+            UUID userId,
+            String accountName,
+            String accountDesc) {
+
         if (accountName == null || accountName.isBlank()) {
             throw new IllegalArgumentException("Account name is required");
         }
@@ -82,52 +82,106 @@ public class AccountService {
         admin.setAccountId(account.getId());
         admin.setUser(user);
         admin.setRole("ADMIN");
-        // default privacy is DETAILED
         admin.setRules("{\"privacy\":\"DETAILED\"}");
-        memberRepo.save(admin);
 
-        return admin;
+        return memberRepo.save(admin);
     }
 
     /**
-     * List all AccountMember entries for the account.
+     * List all members for an account.
      */
     @Transactional(readOnly = true)
     public List<AccountMember> listMembers(UUID accountId) {
         return memberRepo.findByAccountId(accountId);
     }
 
+    @Transactional(readOnly = true)
+    public List<AccountMember> listAccountsForUser(UUID userId) {
+        return memberRepo.findByUserId(userId);
+    }
+
+    /**
+     * Aggregated account view for "My Accounts" API.
+     * Controller should call ONLY this.
+     */
+    @Transactional(readOnly = true)
+    public List<HashMap<String, Object>> listUserAccountViews(UUID userId) {
+        return memberRepo.findByUserId(userId).stream().map(m -> {
+            Optional<Account> accOpt = accountRepo.findById(m.getAccountId());
+
+            HashMap<String, Object> map = new HashMap<>();
+            map.put("accountId", m.getAccountId());
+            map.put("name", accOpt.map(Account::getName).orElse(null));
+            map.put("description", accOpt.map(Account::getDescription).orElse(null));
+            map.put("role", m.getRole());
+            map.put("accountMemberId", m.getId());
+            map.put("rules", m.getRules());
+            return map;
+        }).toList();
+    }
+
     /**
      * Remove a member from an account.
-     * Throws IllegalArgumentException if member not found for the account.
+     * Prevents removing yourself.
      */
     @Transactional
-    public void removeMember(UUID accountId, UUID memberId) {
-        AccountMember member = memberRepo.findByIdAndAccountId(memberId, accountId)
-                .orElseThrow(() -> new IllegalArgumentException("Member not found for this account"));
+    public void removeMember(
+            UUID actorUserId,
+            UUID accountId,
+            UUID memberId) {
 
-        memberRepo.delete(member);
+        AccountMember actor = memberRepo
+                .findByUserIdAndAccountId(actorUserId, accountId)
+                .orElseThrow(() -> new AccessDeniedException("Not a member of this account"));
+
+        if (actor.getId().equals(memberId)) {
+            throw new IllegalStateException("Cannot remove yourself from the account");
+        }
+
+        AccountMember target = memberRepo
+                .findByIdAndAccountId(memberId, accountId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Member not found for this account"));
+
+        memberRepo.delete(target);
     }
 
     /**
      * Update role for a member in the account.
-     * Throws IllegalArgumentException if member not found or invalid role.
+     * Prevents self-demotion.
      */
     @Transactional
-    public AccountMember updateMemberRole(UUID accountId, UUID memberId, String role) {
-        if (role == null || !(role.equalsIgnoreCase("ADMIN") || role.equalsIgnoreCase("MEMBER"))) {
+    public AccountMember updateMemberRole(
+            UUID actorUserId,
+            UUID accountId,
+            UUID memberId,
+            String role) {
+
+        if (role == null ||
+                !(role.equalsIgnoreCase("ADMIN") || role.equalsIgnoreCase("MEMBER"))) {
             throw new IllegalArgumentException("Invalid role");
         }
 
-        AccountMember member = memberRepo.findByIdAndAccountId(memberId, accountId)
-                .orElseThrow(() -> new IllegalArgumentException("Member not found for this account"));
+        AccountMember actor = memberRepo
+                .findByUserIdAndAccountId(actorUserId, accountId)
+                .orElseThrow(() -> new AccessDeniedException("Not a member of this account"));
 
-        member.setRole(role.toUpperCase());
-        return memberRepo.save(member);
+        if (actor.getId().equals(memberId)
+                && !"ADMIN".equalsIgnoreCase(role)) {
+            throw new IllegalStateException("Cannot demote yourself");
+        }
+
+        AccountMember target = memberRepo
+                .findByIdAndAccountId(memberId, accountId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Member not found for this account"));
+
+        target.setRole(role.toUpperCase());
+        return memberRepo.save(target);
     }
 
     /**
-     * Fetch an Account by id (nullable as Optional).
+     * Fetch an account by id.
      */
     @Transactional(readOnly = true)
     public Optional<Account> getAccountById(UUID accountId) {
@@ -135,26 +189,35 @@ public class AccountService {
     }
 
     /**
-     * Update privacy inside the member.rules JSON.
-     * Allowed values: DETAILED, SUMMARY, PRIVATE
-     * Throws IllegalArgumentException for invalid privacy or missing member.
+     * Update privacy for your own membership only.
      */
     @Transactional
-    public AccountMember updateMemberPrivacy(UUID accountId, UUID memberId, String privacy) {
+    public AccountMember updateOwnMemberPrivacy(
+            UUID actorUserId,
+            UUID accountId,
+            UUID memberId,
+            String privacy) {
+
         if (privacy == null) {
             throw new IllegalArgumentException("privacy is required");
         }
+
         String up = privacy.toUpperCase();
         if (!(up.equals("DETAILED") || up.equals("SUMMARY") || up.equals("PRIVATE"))) {
             throw new IllegalArgumentException("Invalid privacy value");
         }
 
-        AccountMember member = memberRepo.findByIdAndAccountId(memberId, accountId)
-                .orElseThrow(() -> new IllegalArgumentException("Member not found for this account"));
+        AccountMember member = memberRepo
+                .findByIdAndAccountId(memberId, accountId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Member not found for this account"));
 
-        // naive JSON set: replace or set rules to {"privacy":"VALUE"}
+        if (!member.getUser().getId().equals(actorUserId)) {
+            throw new AccessDeniedException(
+                    "Can only modify your own membership settings");
+        }
+
         member.setRules("{\"privacy\":\"" + up + "\"}");
         return memberRepo.save(member);
     }
-
 }

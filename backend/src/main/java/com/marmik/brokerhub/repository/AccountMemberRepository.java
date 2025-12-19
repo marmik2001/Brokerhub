@@ -1,10 +1,8 @@
 package com.marmik.brokerhub.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
 
 import com.marmik.brokerhub.model.AccountMember;
-import com.marmik.brokerhub.model.User;
 
 import java.util.List;
 import java.util.Optional;
@@ -14,14 +12,9 @@ public interface AccountMemberRepository extends JpaRepository<AccountMember, UU
 
     List<AccountMember> findByAccountId(UUID accountId);
 
-    List<AccountMember> findByUser(User user);
-
     List<AccountMember> findByUserId(UUID userId);
 
     Optional<AccountMember> findByUserIdAndAccountId(UUID userId, UUID accountId);
-
-    @Query("SELECT am FROM AccountMember am WHERE am.accountId = :accountId AND am.user.id = :userId")
-    Optional<AccountMember> findMembership(UUID accountId, UUID userId);
 
     // Fetch membership by its id and account id (safety check)
     Optional<AccountMember> findByIdAndAccountId(UUID id, UUID accountId);
