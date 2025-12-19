@@ -2,10 +2,10 @@ package com.marmik.brokerhub.controller;
 
 import com.marmik.brokerhub.model.BrokerCredential;
 import com.marmik.brokerhub.repository.AccountMemberRepository;
-import com.marmik.brokerhub.security.JwtUtil;
 import com.marmik.brokerhub.service.BrokerCredentialService;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -23,14 +23,11 @@ import java.util.stream.Collectors;
 public class BrokerCredentialController {
 
     private final BrokerCredentialService service;
-    private final JwtUtil jwtUtil;
     private final AccountMemberRepository accountMemberRepository;
 
     public BrokerCredentialController(BrokerCredentialService service,
-            JwtUtil jwtUtil,
             AccountMemberRepository accountMemberRepository) {
         this.service = service;
-        this.jwtUtil = jwtUtil;
         this.accountMemberRepository = accountMemberRepository;
     }
 
@@ -39,18 +36,8 @@ public class BrokerCredentialController {
 
     @PostMapping
     public ResponseEntity<?> store(@RequestBody StoreRequest req,
-            @RequestHeader("Authorization") String authHeader) {
-        // validate auth header & extract token
-        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
-            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
-        }
-        String rawToken = authHeader.substring(7).trim();
-        Optional<String> userIdOpt = jwtUtil.getUserId(rawToken);
-        if (userIdOpt.isEmpty()) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
-        }
-        UUID caller = UUID.fromString(userIdOpt.get());
-
+            @AuthenticationPrincipal String userId) {
+        UUID caller = UUID.fromString(userId);
         UUID amId;
         try {
             amId = UUID.fromString(req.accountMemberId());
@@ -88,17 +75,8 @@ public class BrokerCredentialController {
 
     @GetMapping
     public ResponseEntity<?> list(@RequestParam("accountMemberId") String accountMemberId,
-            @RequestHeader("Authorization") String authHeader) {
-        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
-            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
-        }
-        String rawToken = authHeader.substring(7).trim();
-        Optional<String> userIdOpt = jwtUtil.getUserId(rawToken);
-        if (userIdOpt.isEmpty()) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
-        }
-        UUID caller = UUID.fromString(userIdOpt.get());
-
+            @AuthenticationPrincipal String userId) {
+        UUID caller = UUID.fromString(userId);
         UUID amId;
         try {
             amId = UUID.fromString(accountMemberId);
@@ -125,24 +103,14 @@ public class BrokerCredentialController {
 
     @DeleteMapping("/{credentialId}")
     public ResponseEntity<?> delete(@PathVariable String credentialId,
-            @RequestHeader("Authorization") String authHeader) {
-        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
-            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
-        }
-        String rawToken = authHeader.substring(7).trim();
-        Optional<String> userIdOpt = jwtUtil.getUserId(rawToken);
-        if (userIdOpt.isEmpty()) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
-        }
-        UUID caller = UUID.fromString(userIdOpt.get());
-
+            @AuthenticationPrincipal String userId) {
+        UUID caller = UUID.fromString(userId);
         UUID credId;
         try {
             credId = UUID.fromString(credentialId);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", "invalid credentialId"));
         }
-
         try {
             service.deleteCredential(caller, credId);
             return ResponseEntity.ok(Map.of("message", "deleted"));

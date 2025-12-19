@@ -36,8 +36,8 @@ public class AuthService {
     /**
      * Change password by userId (global, not per-account).
      */
-    public boolean changePasswordById(String userId, String oldPassword, String newPassword) {
-        Optional<User> maybe = userRepo.findById(UUID.fromString(userId));
+    public boolean changePasswordById(UUID userId, String oldPassword, String newPassword) {
+        Optional<User> maybe = userRepo.findById(userId);
         if (maybe.isEmpty())
             return false;
 

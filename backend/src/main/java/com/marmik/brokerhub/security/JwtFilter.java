@@ -48,7 +48,9 @@ public class JwtFilter extends OncePerRequestFilter {
 
                         String userId = userIdOpt.get();
 
-                        // Minimal authority: ROLE_USER. Per-account roles must be checked per-request.
+                        // Minimal global authority: ROLE_USER
+                        // Account-specific roles (ADMIN/MEMBER) are resolved at runtime per account
+                        // membership, so Spring Security role checks (hasRole) cannot be used here.
                         var authorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
                         var auth = new UsernamePasswordAuthenticationToken(userId, null, authorities);
 

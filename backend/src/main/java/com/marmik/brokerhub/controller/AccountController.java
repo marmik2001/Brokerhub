@@ -3,11 +3,11 @@ package com.marmik.brokerhub.controller;
 import com.marmik.brokerhub.model.Account;
 import com.marmik.brokerhub.model.AccountMember;
 import com.marmik.brokerhub.repository.AccountMemberRepository;
-import com.marmik.brokerhub.security.JwtUtil;
 import com.marmik.brokerhub.service.AccountAccessValidator;
 import com.marmik.brokerhub.service.AccountService;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -19,16 +19,13 @@ public class AccountController {
 
     private final AccountService accountService;
     private final AccountMemberRepository memberRepo;
-    private final JwtUtil jwtUtil;
     private final AccountAccessValidator accessValidator;
 
     public AccountController(AccountService accountService,
             AccountMemberRepository memberRepo,
-            JwtUtil jwtUtil,
             AccountAccessValidator accessValidator) {
         this.accountService = accountService;
         this.memberRepo = memberRepo;
-        this.jwtUtil = jwtUtil;
         this.accessValidator = accessValidator;
     }
 
@@ -50,21 +47,12 @@ public class AccountController {
     @PostMapping
     public ResponseEntity<?> createAccount(
             @RequestBody CreateAccountRequest req,
-            @RequestHeader("Authorization") String authHeader) {
-        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
-            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
-        }
-
-        String token = authHeader.substring(7).trim();
-        String userIdStr = jwtUtil.getUserId(token).orElse(null);
-        if (userIdStr == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
-        }
+            @AuthenticationPrincipal String userId) {
 
         try {
-            UUID userId = UUID.fromString(userIdStr);
+            UUID caller = UUID.fromString(userId);
             AccountMember admin = accountService.createAccountForUser(
-                    userId,
+                    caller,
                     req.accountName(),
                     req.accountDesc());
 
@@ -80,22 +68,13 @@ public class AccountController {
     /** Authenticated: list all members for the account (ADMIN only). */
     @GetMapping("/{accountId}/members")
     public ResponseEntity<?> listMembers(@PathVariable String accountId,
-            @RequestHeader("Authorization") String authHeader) {
+            @AuthenticationPrincipal String userId) {
 
-        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
-            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
-        }
-        String token = authHeader.substring(7).trim();
-        String userIdStr = jwtUtil.getUserId(token).orElse(null);
-        if (userIdStr == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
-        }
-
-        UUID userId = UUID.fromString(userIdStr);
+        UUID caller = UUID.fromString(userId);
         UUID accId = UUID.fromString(accountId);
 
         try {
-            accessValidator.requireRole(userId, accId, "ADMIN");
+            accessValidator.requireRole(caller, accId, "ADMIN");
         } catch (org.springframework.security.access.AccessDeniedException ex) {
             return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
         }
@@ -117,22 +96,13 @@ public class AccountController {
     public ResponseEntity<?> addMember(
             @PathVariable String accountId,
             @RequestBody AddMemberRequest req,
-            @RequestHeader("Authorization") String authHeader) {
-        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
-            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
-        }
+            @AuthenticationPrincipal String userId) {
 
-        String token = authHeader.substring(7).trim();
-        String userIdStr = jwtUtil.getUserId(token).orElse(null);
-        if (userIdStr == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
-        }
-
-        UUID userId = UUID.fromString(userIdStr);
+        UUID caller = UUID.fromString(userId);
         UUID accId = UUID.fromString(accountId);
 
         try {
-            accessValidator.requireRole(userId, accId, "ADMIN");
+            accessValidator.requireRole(caller, accId, "ADMIN");
         } catch (org.springframework.security.access.AccessDeniedException ex) {
             return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
         }
@@ -163,29 +133,21 @@ public class AccountController {
     public ResponseEntity<?> updateMemberRole(@PathVariable String accountId,
             @PathVariable String memberId,
             @RequestBody RoleUpdateRequest body,
-            @RequestHeader("Authorization") String authHeader) {
-        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
-            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
-        }
-        String token = authHeader.substring(7).trim();
-        String userIdStr = jwtUtil.getUserId(token).orElse(null);
-        if (userIdStr == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
-        }
+            @AuthenticationPrincipal String userId) {
 
-        UUID userId = UUID.fromString(userIdStr);
+        UUID caller = UUID.fromString(userId);
         UUID accId = UUID.fromString(accountId);
         UUID memId = UUID.fromString(memberId);
 
         try {
-            accessValidator.requireRole(userId, accId, "ADMIN");
+            accessValidator.requireRole(caller, accId, "ADMIN");
         } catch (org.springframework.security.access.AccessDeniedException ex) {
             return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
         }
 
         try {
             // safety: prevent admin from demoting themselves
-            Optional<AccountMember> currentMembership = memberRepo.findByUserIdAndAccountId(userId, accId);
+            Optional<AccountMember> currentMembership = memberRepo.findByUserIdAndAccountId(caller, accId);
             if (currentMembership.isPresent() && currentMembership.get().getId().equals(memId)) {
                 // attempting to update own role
                 if (!"ADMIN".equalsIgnoreCase(body.role())) {
@@ -208,29 +170,21 @@ public class AccountController {
     @DeleteMapping("/{accountId}/members/{memberId}")
     public ResponseEntity<?> removeMember(@PathVariable String accountId,
             @PathVariable String memberId,
-            @RequestHeader("Authorization") String authHeader) {
-        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
-            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
-        }
-        String token = authHeader.substring(7).trim();
-        String userIdStr = jwtUtil.getUserId(token).orElse(null);
-        if (userIdStr == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
-        }
+            @AuthenticationPrincipal String userId) {
 
-        UUID userId = UUID.fromString(userIdStr);
+        UUID caller = UUID.fromString(userId);
         UUID accId = UUID.fromString(accountId);
         UUID memId = UUID.fromString(memberId);
 
         try {
-            accessValidator.requireRole(userId, accId, "ADMIN");
+            accessValidator.requireRole(caller, accId, "ADMIN");
         } catch (org.springframework.security.access.AccessDeniedException ex) {
             return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
         }
 
         try {
             // prevent admin removing themselves
-            Optional<AccountMember> currentMembership = memberRepo.findByUserIdAndAccountId(userId, accId);
+            Optional<AccountMember> currentMembership = memberRepo.findByUserIdAndAccountId(caller, accId);
             if (currentMembership.isPresent() && currentMembership.get().getId().equals(memId)) {
                 return ResponseEntity.status(409).body(Map.of("error", "Cannot remove yourself from the account"));
             }
@@ -244,18 +198,9 @@ public class AccountController {
 
     /** Authenticated: list all accounts current user belongs to. */
     @GetMapping
-    public ResponseEntity<?> listUserAccounts(@RequestHeader("Authorization") String authHeader) {
-        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
-            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
-        }
+    public ResponseEntity<?> listUserAccounts(@AuthenticationPrincipal String userId) {
 
-        String token = authHeader.substring(7).trim();
-        String userIdStr = jwtUtil.getUserId(token).orElse(null);
-        if (userIdStr == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
-        }
-
-        UUID userUUID = UUID.fromString(userIdStr);
+        UUID userUUID = UUID.fromString(userId);
         List<AccountMember> memberships = memberRepo.findByUserId(userUUID);
 
         var payload = memberships.stream().map(m -> {
@@ -282,17 +227,9 @@ public class AccountController {
     public ResponseEntity<?> updateMemberRule(@PathVariable String accountId,
             @PathVariable String memberId,
             @RequestBody PrivacyUpdateRequest body,
-            @RequestHeader("Authorization") String authHeader) {
-        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
-            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
-        }
-        String token = authHeader.substring(7).trim();
-        String userIdStr = jwtUtil.getUserId(token).orElse(null);
-        if (userIdStr == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
-        }
+            @AuthenticationPrincipal String userId) {
 
-        UUID userId = UUID.fromString(userIdStr);
+        UUID caller = UUID.fromString(userId);
         UUID accId = UUID.fromString(accountId);
         UUID memId = UUID.fromString(memberId);
 
@@ -302,7 +239,7 @@ public class AccountController {
             return ResponseEntity.status(404).body(Map.of("error", "Member not found for this account"));
         }
         AccountMember membership = membershipOpt.get();
-        if (!membership.getUser().getId().equals(userId)) {
+        if (!membership.getUser().getId().equals(caller)) {
             return ResponseEntity.status(403).body(Map.of("error", "Can only modify your own membership settings"));
         }
 

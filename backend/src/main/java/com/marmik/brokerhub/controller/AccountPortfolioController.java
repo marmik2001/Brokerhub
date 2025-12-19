@@ -2,9 +2,9 @@ package com.marmik.brokerhub.controller;
 
 import com.marmik.brokerhub.service.AccountPortfolioService;
 import com.marmik.brokerhub.service.AccountAccessValidator;
-import com.marmik.brokerhub.security.JwtUtil;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -15,15 +15,12 @@ import java.util.UUID;
 public class AccountPortfolioController {
 
     private final AccountPortfolioService portfolioService;
-    private final JwtUtil jwtUtil;
     private final AccountAccessValidator accessValidator;
 
     public AccountPortfolioController(
             AccountPortfolioService portfolioService,
-            JwtUtil jwtUtil,
             AccountAccessValidator accessValidator) {
         this.portfolioService = portfolioService;
-        this.jwtUtil = jwtUtil;
         this.accessValidator = accessValidator;
     }
 
@@ -37,22 +34,12 @@ public class AccountPortfolioController {
     @GetMapping("/{accountId}/aggregate-holdings")
     public ResponseEntity<?> getAggregateHoldings(
             @PathVariable String accountId,
-            @RequestHeader("Authorization") String authHeader) {
+            @AuthenticationPrincipal String userId) {
 
-        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
-            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
-        }
-
-        String token = authHeader.substring(7).trim();
-        String userIdStr = jwtUtil.getUserId(token).orElse(null);
-        if (userIdStr == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
-        }
-
-        UUID userId;
+        UUID caller;
         UUID accId;
         try {
-            userId = UUID.fromString(userIdStr);
+            caller = UUID.fromString(userId);
             accId = UUID.fromString(accountId);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid UUID"));
@@ -61,13 +48,13 @@ public class AccountPortfolioController {
         // ensure caller is a member of the account (throws AccessDeniedException if
         // not)
         try {
-            accessValidator.requireMembership(userId, accId);
+            accessValidator.requireMembership(caller, accId);
         } catch (org.springframework.security.access.AccessDeniedException ex) {
             return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
         }
 
         // returns Map { full: [...], partial: [...] }
-        Map<String, Object> result = portfolioService.aggregateHoldingsForAccount(accId, userId);
+        Map<String, Object> result = portfolioService.aggregateHoldingsForAccount(accId, caller);
 
         return ResponseEntity.ok(result);
     }
@@ -81,22 +68,12 @@ public class AccountPortfolioController {
     @GetMapping("/{accountId}/aggregate-positions")
     public ResponseEntity<?> getAggregatePositions(
             @PathVariable String accountId,
-            @RequestHeader("Authorization") String authHeader) {
+            @AuthenticationPrincipal String userId) {
 
-        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
-            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
-        }
-
-        String token = authHeader.substring(7).trim();
-        String userIdStr = jwtUtil.getUserId(token).orElse(null);
-        if (userIdStr == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
-        }
-
-        UUID userId;
+        UUID caller;
         UUID accId;
         try {
-            userId = UUID.fromString(userIdStr);
+            caller = UUID.fromString(userId);
             accId = UUID.fromString(accountId);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid UUID"));
@@ -104,13 +81,13 @@ public class AccountPortfolioController {
 
         // ensure caller is a member of the account
         try {
-            accessValidator.requireMembership(userId, accId);
+            accessValidator.requireMembership(caller, accId);
         } catch (org.springframework.security.access.AccessDeniedException ex) {
             return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
         }
 
         // returns Map { full: [...], partial: [...] }
-        Map<String, Object> result = portfolioService.aggregatePositionsForAccount(accId, userId);
+        Map<String, Object> result = portfolioService.aggregatePositionsForAccount(accId, caller);
 
         return ResponseEntity.ok(result);
     }

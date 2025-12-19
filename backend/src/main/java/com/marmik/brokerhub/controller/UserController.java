@@ -1,9 +1,9 @@
 package com.marmik.brokerhub.controller;
 
-import com.marmik.brokerhub.security.JwtUtil;
 import com.marmik.brokerhub.service.UserService;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -15,30 +15,19 @@ import java.util.UUID;
 public class UserController {
 
     private final UserService userService;
-    private final JwtUtil jwtUtil;
 
-    public UserController(UserService userService, JwtUtil jwtUtil) {
+    public UserController(UserService userService) {
         this.userService = userService;
-        this.jwtUtil = jwtUtil;
     }
 
     /**
      * Get the currently authenticated user's profile.
      */
     @GetMapping("/me")
-    public ResponseEntity<?> getCurrentUser(@RequestHeader("Authorization") String authHeader) {
-        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
-            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
-        }
+    public ResponseEntity<?> getCurrentUser(@AuthenticationPrincipal String userId) {
 
-        String token = authHeader.substring(7).trim();
-        String userIdStr = jwtUtil.getUserId(token).orElse(null);
-        if (userIdStr == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
-        }
-
-        UUID userId = UUID.fromString(userIdStr);
-        Optional<Map<String, Object>> profileOpt = userService.getUserProfile(userId);
+        UUID caller = UUID.fromString(userId);
+        Optional<Map<String, Object>> profileOpt = userService.getUserProfile(caller);
         if (profileOpt.isEmpty()) {
             return ResponseEntity.status(404).body(Map.of("error", "User not found"));
         }

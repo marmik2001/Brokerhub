@@ -7,10 +7,12 @@ import com.marmik.brokerhub.security.JwtUtil;
 import com.marmik.brokerhub.service.AuthService;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
@@ -60,19 +62,11 @@ public class AuthController {
 
     @PutMapping("/change-password")
     public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest req,
-            @RequestHeader("Authorization") String authHeader) {
-        if (authHeader == null || !authHeader.toLowerCase().startsWith("bearer ")) {
-            return ResponseEntity.status(401).body(Map.of("error", "Missing or invalid Authorization header"));
-        }
+            @AuthenticationPrincipal String userId) {
 
-        String token = authHeader.substring(7).trim();
-        String userId = jwtUtil.getUserId(token).orElse(null);
+        UUID caller = UUID.fromString(userId);
 
-        if (userId == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
-        }
-
-        boolean updated = authService.changePasswordById(userId, req.oldPassword(), req.newPassword());
+        boolean updated = authService.changePasswordById(caller, req.oldPassword(), req.newPassword());
         if (!updated) {
             return ResponseEntity.status(400).body(Map.of("error", "Old password is incorrect"));
         }
