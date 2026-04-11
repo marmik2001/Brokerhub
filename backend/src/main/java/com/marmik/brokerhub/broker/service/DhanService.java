@@ -139,6 +139,22 @@ public class DhanService implements BrokerClient {
                         .map(DhanAdapter::fromDhanPosition)
                         .toList();
 
+                // Enrich positions with market last price (same source as holdings)
+                List<String> symbols = positions.stream()
+                        .map(PositionItem::getTradingSymbol)
+                        .toList();
+
+                List<PriceResponse> prices = marketDataService.getPrices(symbols);
+                Map<String, PriceResponse> priceMap = prices.stream()
+                        .collect(Collectors.toMap(PriceResponse::getSymbol, p -> p));
+
+                positions.forEach(position -> {
+                    PriceResponse price = priceMap.get(position.getTradingSymbol());
+                    if (price != null && price.getLastPrice() != 0) {
+                        position.setLastPrice(price.getLastPrice());
+                    }
+                });
+
                 return positions;
             }
         } catch (IOException e) {
