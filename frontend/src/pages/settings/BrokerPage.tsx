@@ -9,6 +9,7 @@ import {
   type BrokerCredential,
 } from "../../services/brokerCredentialService";
 import { toast } from "react-hot-toast";
+import { parseApiError } from "../../utils/apiError";
 
 const SettingsBrokerPage: React.FC = () => {
   const { currentAccount } = useAuth();
@@ -32,8 +33,9 @@ const SettingsBrokerPage: React.FC = () => {
     try {
       const data = await listCredentials(accountMemberId, accountIdFallback);
       setCredentials(data || []);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.error || "Failed to load credentials");
+    } catch (err: unknown) {
+      const { message } = parseApiError(err);
+      toast.error(message || "Failed to load credentials");
       setCredentials([]);
     } finally {
       setLoading(false);
@@ -51,8 +53,9 @@ const SettingsBrokerPage: React.FC = () => {
       await deleteCredential(id);
       toast.success("Removed");
       load();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.error || "Failed to remove");
+    } catch (err: unknown) {
+      const { message } = parseApiError(err);
+      toast.error(message || "Failed to remove");
     }
   };
 

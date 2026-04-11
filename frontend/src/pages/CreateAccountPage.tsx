@@ -43,9 +43,11 @@ const CreateAccountPage: React.FC = () => {
       addAccount(newAccount);
       toast.success("Group created successfully!");
       navigate("/");
-    } catch (err: any) {
+    } catch (err: unknown) {
       const { message } = parseApiError(err);
-      setError(message || "Failed to create group");
+      const finalMessage = message || "Failed to create group";
+      setError(finalMessage);
+      toast.error(finalMessage);
     } finally {
       setSubmitting(false);
     }

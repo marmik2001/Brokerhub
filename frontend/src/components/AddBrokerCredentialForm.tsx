@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { toast } from "react-hot-toast";
 import { storeCredential } from "../services/brokerCredentialService";
+import { parseApiError } from "../utils/apiError";
 
 interface Props {
   accountMemberId?: string; // required to create; parent may pass it
@@ -52,10 +53,9 @@ const AddBrokerCredentialForm: React.FC<Props> = ({
       // wipe token input immediately (do not store)
       setTokenJson("");
       onSaved();
-    } catch (err: any) {
-      const msg =
-        err?.response?.data?.error || err?.message || "Failed to save";
-      toast.error(msg);
+    } catch (err: unknown) {
+      const { message } = parseApiError(err);
+      toast.error(message || "Failed to save");
     } finally {
       setLoading(false);
     }

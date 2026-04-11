@@ -9,6 +9,7 @@ import {
 } from "../../services/accountService";
 import { toast } from "react-hot-toast";
 import DataTable from "../../components/DataTable";
+import { parseApiError } from "../../utils/apiError";
 
 const GroupPage: React.FC = () => {
   const { currentAccount, isAdmin, user } = useAuth();
@@ -26,8 +27,9 @@ const GroupPage: React.FC = () => {
     try {
       const data = await getMembers(currentAccount.accountId);
       setMembers(data);
-    } catch {
-      toast.error("Failed to load members");
+    } catch (err: unknown) {
+      const { message } = parseApiError(err);
+      toast.error(message || "Failed to load members");
     } finally {
       setLoading(false);
     }
@@ -44,8 +46,9 @@ const GroupPage: React.FC = () => {
       toast.success("Member added successfully");
       setLoginIdOrEmail("");
       loadMembers();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.error || "Failed to add member");
+    } catch (err: unknown) {
+      const { message } = parseApiError(err);
+      toast.error(message || "Failed to add member");
     }
   };
 
@@ -58,8 +61,9 @@ const GroupPage: React.FC = () => {
       await updateMemberRole(currentAccount.accountId, memberId, newRole);
       toast.success("Role updated");
       loadMembers();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.error || "Failed to update role");
+    } catch (err: unknown) {
+      const { message } = parseApiError(err);
+      toast.error(message || "Failed to update role");
     }
   };
 
@@ -74,8 +78,9 @@ const GroupPage: React.FC = () => {
       await removeMember(currentAccount.accountId, memberId);
       toast.success("Member removed");
       loadMembers();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.error || "Failed to remove member");
+    } catch (err: unknown) {
+      const { message } = parseApiError(err);
+      toast.error(message || "Failed to remove member");
     }
   };
 

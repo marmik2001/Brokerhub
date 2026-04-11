@@ -7,7 +7,7 @@ import type { AccountSummary } from "../services/authService";
 const SelectGroupPage: React.FC = () => {
   // NOTE: we intentionally do NOT rely on auth.accounts here.
   // This page fetches the authoritative accounts list from GET /api/accounts.
-  const { selectAccountDirect } = useAuth();
+  const { selectAccountDirect, clearCurrentAccount } = useAuth();
   const navigate = useNavigate();
 
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
@@ -15,6 +15,8 @@ const SelectGroupPage: React.FC = () => {
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
+    clearCurrentAccount();
+
     let mounted = true;
     (async () => {
       setLoading(true);
@@ -34,6 +36,8 @@ const SelectGroupPage: React.FC = () => {
     return () => {
       mounted = false;
     };
+    // Intentionally run on page entry only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSelect = (account: AccountSummary) => {
@@ -45,7 +49,7 @@ const SelectGroupPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-[calc(100vh-10rem)] flex items-center justify-center bg-gray-50 px-4">
       <div className="bg-white border rounded-lg shadow-sm p-8 w-full max-w-md text-center">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">
           Select a Group to Continue

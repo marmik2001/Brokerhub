@@ -1,14 +1,9 @@
 import api from "../api";
+import type { AccountSummary } from "./authService";
 
 export interface CreateAccountRequest {
   accountName: string;
   accountDesc?: string;
-}
-
-export interface CreateAccountResponse {
-  accountId: string;
-  name: string;
-  role: "ADMIN" | "MEMBER";
 }
 
 export interface Member {
@@ -25,8 +20,8 @@ export interface Member {
  */
 export async function createAccount(
   req: CreateAccountRequest
-): Promise<CreateAccountResponse> {
-  const { data } = await api.post<CreateAccountResponse>("/accounts", req);
+): Promise<AccountSummary> {
+  const { data } = await api.post<AccountSummary>("/accounts", req);
   return data;
 }
 
@@ -34,8 +29,8 @@ export async function createAccount(
  * GET /api/accounts
  * Lists all accounts the authenticated user belongs to
  */
-export async function listAccounts(): Promise<CreateAccountResponse[]> {
-  const { data } = await api.get<CreateAccountResponse[]>("/accounts");
+export async function listAccounts(): Promise<AccountSummary[]> {
+  const { data } = await api.get<AccountSummary[]>("/accounts");
   return data;
 }
 

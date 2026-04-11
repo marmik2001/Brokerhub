@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { changePassword } from "../../services/authService";
 import { toast } from "react-hot-toast";
+import { parseApiError } from "../../utils/apiError";
 
 const ProfilePage: React.FC = () => {
   const { user, currentAccount } = useAuth();
@@ -24,9 +25,8 @@ const ProfilePage: React.FC = () => {
       setNewPassword("");
       setConfirmPassword("");
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Error changing password";
-      toast.error(message);
+      const { message } = parseApiError(err);
+      toast.error(message || "Error changing password");
     } finally {
       setLoading(false);
     }

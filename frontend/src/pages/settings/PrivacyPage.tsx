@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { updateMemberRule } from "../../services/authService";
 import { toast } from "react-hot-toast";
+import { parseApiError } from "../../utils/apiError";
 
 const SettingsPrivacyPage: React.FC = () => {
   const { currentAccount, updateAccountRules } = useAuth();
@@ -75,12 +76,9 @@ const SettingsPrivacyPage: React.FC = () => {
       updateAccountRules(currentAccount.accountId, parsedRules);
 
       toast.success("Privacy updated");
-    } catch (err: any) {
-      const msg =
-        err?.response?.data?.error ??
-        err?.message ??
-        "Failed to update privacy";
-      toast.error(msg);
+    } catch (err: unknown) {
+      const { message } = parseApiError(err);
+      toast.error(message || "Failed to update privacy");
     } finally {
       setSubmitting(false);
     }

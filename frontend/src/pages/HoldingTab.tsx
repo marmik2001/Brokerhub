@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import StatCard from "../components/StatCard";
 import DataTable from "../components/DataTable";
 import EmptyState from "../components/EmptyState";
@@ -11,13 +11,6 @@ type Props = {
   holdings: Holding[];
   partialTickers: string[];
   loading: boolean;
-  search: string;
-  onSearch: (s: string) => void;
-  filter: FilterKey;
-  onFilterChange: (f: FilterKey) => void;
-  totalValue: number;
-  totalPnl: number;
-  currentAccount?: { name?: string; description?: string } | null;
 };
 
 const HOLDINGS_FILTERS: FilterKey[] = ["ALL", "PROFIT", "LOSS"];
@@ -26,19 +19,43 @@ const HoldingsTab: React.FC<Props> = ({
   holdings,
   partialTickers,
   loading,
-  search,
-  onSearch,
-  filter,
-  onFilterChange,
-  totalValue,
-  totalPnl,
 }) => {
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<FilterKey>("ALL");
+
+  const filtered = useMemo(() => {
+    const q = (search || "").trim().toLowerCase();
+    return holdings.filter((h) => {
+      if (q) {
+        const sym = (h.tradingSymbol ?? "").toLowerCase();
+        const isin = (h.isin ?? "").toLowerCase();
+        if (!sym.includes(q) && !isin.includes(q)) return false;
+      }
+
+      if (filter === "PROFIT") return (h.pnl ?? 0) > 0;
+      if (filter === "LOSS") return (h.pnl ?? 0) < 0;
+      return true;
+    });
+  }, [holdings, search, filter]);
+
+  const totalValue = useMemo(() => {
+    return filtered.reduce((s, h) => {
+      const last = h.lastPrice ?? 0;
+      const qty = h.quantity ?? 0;
+      return s + last * qty;
+    }, 0);
+  }, [filtered]);
+
+  const totalPnl = useMemo(() => {
+    return filtered.reduce((s, h) => s + (h.pnl ?? 0), 0);
+  }, [filtered]);
+
   return (
-    <>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatCard
           title="Total Value"
-          value={`₹ ${totalValue.toLocaleString()}`}
+          value={`₹ ${totalValue.toLocaleString("en-IN")}`}
         />
         <StatCard
           title={`P&L (${
@@ -55,12 +72,12 @@ const HoldingsTab: React.FC<Props> = ({
         />
       </div>
 
-      <div>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between mb-3">
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between">
           <div className="flex-1 min-w-0">
             <SearchBar
               initial={search}
-              onSearch={onSearch}
+              onSearch={setSearch}
               placeholder="Search holdings by symbol or ISIN"
               ariaLabel="Search holdings"
             />
@@ -74,24 +91,24 @@ const HoldingsTab: React.FC<Props> = ({
           <div>
             <FilterChips
               value={filter}
-              onChange={onFilterChange}
+              onChange={setFilter}
               allowedKeys={HOLDINGS_FILTERS}
             />
           </div>
         </div>
 
-        <h3 className="text-lg font-medium mb-2">Holdings</h3>
+        <h3 className="text-lg font-medium">Holdings</h3>
 
         {loading ? (
           <div className="p-6 bg-white border rounded">Loading...</div>
-        ) : holdings.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <EmptyState
             title="No holdings available"
             description="Connect a broker!"
           />
         ) : (
           <DataTable<Holding>
-            data={holdings}
+            data={filtered}
             columns={[
               {
                 header: "Symbol",
@@ -140,7 +157,7 @@ const HoldingsTab: React.FC<Props> = ({
           />
         )}
       </div>
-    </>
+    </div>
   );
 };
 

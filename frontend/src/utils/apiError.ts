@@ -25,7 +25,13 @@ export function parseApiError(err: unknown): {
   } else if (typeof err === "object") {
     // try to extract common keys
     const anyErr = err as any;
-    if (typeof anyErr.error === "string") {
+    const responseData = anyErr?.response?.data;
+
+    if (typeof responseData?.error === "string") {
+      message = responseData.error;
+    } else if (typeof responseData?.message === "string") {
+      message = responseData.message;
+    } else if (typeof anyErr.error === "string") {
       message = anyErr.error;
     } else if (typeof anyErr.message === "string") {
       message = anyErr.message;

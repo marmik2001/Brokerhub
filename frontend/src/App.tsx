@@ -29,7 +29,9 @@ export default function App() {
             path="/select-account"
             element={
               <ProtectedRoute>
-                <SelectAccountPage />
+                <AppLayout showPrimaryNav={false} showChangeGroup={false}>
+                  <SelectAccountPage />
+                </AppLayout>
               </ProtectedRoute>
             }
           />
@@ -56,6 +58,24 @@ export default function App() {
             }
           />
 
+          <Route
+            path="/positions"
+            element={
+              <ProtectedRoute>
+                <Navigate to="/" replace state={{ section: "positions" }} />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/feed"
+            element={
+              <ProtectedRoute>
+                <Navigate to="/" replace state={{ section: "feed" }} />
+              </ProtectedRoute>
+            }
+          />
+
           {/* ---------- Settings section (has sidebar) ---------- */}
           <Route
             path="/settings"
@@ -72,6 +92,7 @@ export default function App() {
             <Route path="broker" element={<SettingsBrokerPage />} />
             <Route path="privacy" element={<SettingsPrivacyPage />} />
             <Route path="group" element={<SettingsGroupPage />} />
+            <Route path="*" element={<Navigate to="profile" replace />} />
           </Route>
 
           {/* ---------- Fallback ---------- */}

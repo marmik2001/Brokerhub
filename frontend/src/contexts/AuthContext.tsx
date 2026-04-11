@@ -15,6 +15,7 @@ interface AuthContextType {
   logout: () => void;
   selectAccount: (accountId: string) => void;
   selectAccountDirect: (account: AccountSummary) => void;
+  clearCurrentAccount: () => void;
   addAccount: (account: AccountSummary) => void;
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
   isAuthenticated: boolean;
@@ -148,6 +149,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     persist(updated);
   };
 
+  const clearCurrentAccount = () => {
+    setCurrentAccount(null);
+
+    // Keep auth session, remove selected account from persisted auth.
+    const updated = {
+      token,
+      user,
+    };
+    persist(updated);
+  };
+
   const handleChangePassword = async (
     oldPassword: string,
     newPassword: string
@@ -186,6 +198,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         logout,
         selectAccount,
         selectAccountDirect,
+        clearCurrentAccount,
         addAccount,
         changePassword: handleChangePassword,
         isAuthenticated: !!token,

@@ -1,9 +1,8 @@
 // src/components/layout/Navbar.tsx
 import React, { useState, useRef, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   User,
-  Home,
   ChevronDown,
   LogOut,
   Menu,
@@ -12,11 +11,18 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
-const Navbar: React.FC<{ onToggleSidebar?: () => void }> = ({
+const Navbar: React.FC<{
+  onToggleSidebar?: () => void;
+  showPrimaryNav?: boolean;
+  showChangeGroup?: boolean;
+}> = ({
   onToggleSidebar,
+  showPrimaryNav = true,
+  showChangeGroup = true,
 }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, currentAccount, clearCurrentAccount } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -41,8 +47,26 @@ const Navbar: React.FC<{ onToggleSidebar?: () => void }> = ({
 
   const goToGroupSelect = () => {
     setOpen(false);
+    clearCurrentAccount();
     navigate("/select-account");
   };
+
+  type Section = "holding" | "positions" | "feed";
+  const selectedSection =
+    (location.state as { section?: Section } | null)?.section ?? "holding";
+
+  const navLinkClass = (isActive: boolean) =>
+    [
+      "text-sm px-3 py-1.5 rounded-md transition-colors",
+      isActive
+        ? "bg-gray-100 text-gray-900 font-medium"
+        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50",
+    ].join(" ");
+
+  const goToHomeSection = (section: Section) => {
+    navigate("/", { state: { section } });
+  };
+  const canShowPrimaryNav = showPrimaryNav && !!currentAccount;
 
   return (
     <nav className="bg-white border-b border-gray-200 px-4 py-3">
@@ -56,16 +80,43 @@ const Navbar: React.FC<{ onToggleSidebar?: () => void }> = ({
             <Menu className="w-5 h-5 text-gray-700" />
           </button>
 
-          <Link to="/" className="text-xl font-semibold text-gray-900">
+          <span className="text-xl font-semibold text-gray-900">
             BrokerHub
-          </Link>
+          </span>
 
-          <Link
-            to="/"
-            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 hidden md:flex"
-          >
-            <Home className="w-4 h-4" /> Home
-          </Link>
+          {canShowPrimaryNav && (
+            <>
+              <div className="hidden md:flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => goToHomeSection("holding")}
+                  className={navLinkClass(
+                    location.pathname === "/" && selectedSection === "holding"
+                  )}
+                >
+                  Holding
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goToHomeSection("positions")}
+                  className={navLinkClass(
+                    location.pathname === "/" && selectedSection === "positions"
+                  )}
+                >
+                  Positions
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goToHomeSection("feed")}
+                  className={navLinkClass(
+                    location.pathname === "/" && selectedSection === "feed"
+                  )}
+                >
+                  Feed
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="relative" ref={ref}>
@@ -88,12 +139,14 @@ const Navbar: React.FC<{ onToggleSidebar?: () => void }> = ({
               >
                 <Gear className="w-4 h-4" /> Settings
               </button>
-              <button
-                onClick={goToGroupSelect}
-                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
-              >
-                <Layers className="w-4 h-4" /> Change Group
-              </button>
+              {showChangeGroup && (
+                <button
+                  onClick={goToGroupSelect}
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
+                >
+                  <Layers className="w-4 h-4" /> Change Group
+                </button>
+              )}
               <hr className="my-1 border-gray-200" />
               <button
                 onClick={handleLogout}
