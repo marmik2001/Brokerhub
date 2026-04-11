@@ -44,88 +44,86 @@ const SettingsLayout: React.FC = () => {
   }, [currentAccount, isAdmin, location.pathname, navigate]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto py-8 px-4 lg:px-8 flex flex-col md:flex-row gap-8">
-        <aside className="hidden md:block w-64 shrink-0">
-          <nav className="space-y-1">
-            <NavLink to="profile" className={linkClasses}>
+    <div className="max-w-7xl mx-auto py-8 px-4 lg:px-8 flex flex-col md:flex-row gap-8">
+      <aside className="hidden md:block w-64 shrink-0">
+        <nav className="space-y-1">
+          <NavLink to="profile" className={linkClasses}>
+            {({ isActive }) => (
+              <>
+                <User
+                  className={`w-4 h-4 ${
+                    isActive ? "text-blue-700" : "text-gray-500"
+                  }`}
+                />
+                Profile
+              </>
+            )}
+          </NavLink>
+
+          {currentAccount && (
+            <NavLink to="broker" className={linkClasses}>
               {({ isActive }) => (
                 <>
-                  <User
+                  <Gear
                     className={`w-4 h-4 ${
                       isActive ? "text-blue-700" : "text-gray-500"
                     }`}
                   />
-                  Profile
+                  Broker Access
                 </>
               )}
             </NavLink>
+          )}
 
-            {currentAccount && (
-              <NavLink to="broker" className={linkClasses}>
-                {({ isActive }) => (
-                  <>
-                    <Gear
-                      className={`w-4 h-4 ${
-                        isActive ? "text-blue-700" : "text-gray-500"
-                      }`}
-                    />
-                    Broker Access
-                  </>
-                )}
-              </NavLink>
-            )}
+          {currentAccount && (
+            <NavLink to="privacy" className={linkClasses}>
+              {({ isActive }) => (
+                <>
+                  <Shield
+                    className={`w-4 h-4 ${
+                      isActive ? "text-blue-700" : "text-gray-500"
+                    }`}
+                  />
+                  Privacy
+                </>
+              )}
+            </NavLink>
+          )}
 
-            {currentAccount && (
-              <NavLink to="privacy" className={linkClasses}>
-                {({ isActive }) => (
-                  <>
-                    <Shield
-                      className={`w-4 h-4 ${
-                        isActive ? "text-blue-700" : "text-gray-500"
-                      }`}
-                    />
-                    Privacy
-                  </>
-                )}
-              </NavLink>
-            )}
+          {currentAccount && isAdmin && (
+            <NavLink to="group" className={linkClasses}>
+              {({ isActive }) => (
+                <>
+                  <Users
+                    className={`w-4 h-4 ${
+                      isActive ? "text-blue-700" : "text-gray-500"
+                    }`}
+                  />
+                  Group Management
+                </>
+              )}
+            </NavLink>
+          )}
+        </nav>
+      </aside>
 
-            {currentAccount && isAdmin && (
-              <NavLink to="group" className={linkClasses}>
-                {({ isActive }) => (
-                  <>
-                    <Users
-                      className={`w-4 h-4 ${
-                        isActive ? "text-blue-700" : "text-gray-500"
-                      }`}
-                    />
-                    Group Management
-                  </>
-                )}
-              </NavLink>
-            )}
-          </nav>
-        </aside>
-
-        <div className="md:hidden w-full mb-4">
-          <select
-            className="w-full border rounded-md p-2"
-            value={current.value}
-            onChange={(e) => navigate(`/settings/${e.target.value}`)}
-          >
-            {options.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <main className="flex-1 bg-white rounded-lg shadow-sm border p-6">
-          <Outlet />
-        </main>
+      <div className="md:hidden w-full mb-4">
+        <select
+          className="w-full border rounded-md p-2"
+          value={current.value}
+          onChange={(e) => navigate(`/settings/${e.target.value}`)}
+        >
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
       </div>
+
+      <main className="flex-1 bg-white rounded-lg shadow-sm border p-6">
+        <Outlet />
+      </main>
     </div>
   );
 };

@@ -7,9 +7,9 @@ import {
   fetchAggregateHoldings,
   fetchAggregatePositions,
 } from "../services/portfolioService";
-import HoldingsTab from "./HoldingTab";
-import PositionsTab from "./PositionTab";
-import FeedTab from "./FeedTab";
+import HoldingsTab from "../components/home/HoldingTab";
+import PositionsTab from "../components/home/PositionTab";
+import FeedTab from "../components/home/FeedTab";
 import { toast } from "react-hot-toast";
 import { parseApiError } from "../utils/apiError";
 

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 
 type Column<T> = {
   header: string;
@@ -19,6 +19,20 @@ const DataTable = <T,>({
     index: number;
     direction: "asc" | "desc";
   } | null>(null);
+  const rowIdsRef = useRef(new WeakMap<object, string>());
+  const rowIdCounterRef = useRef(0);
+
+  const getRowKey = (row: T) => {
+    if (typeof row === "object" && row !== null) {
+      const existing = rowIdsRef.current.get(row as object);
+      if (existing) return existing;
+      rowIdCounterRef.current += 1;
+      const created = `row-${rowIdCounterRef.current}`;
+      rowIdsRef.current.set(row as object, created);
+      return created;
+    }
+    return `${typeof row}:${String(row)}`;
+  };
 
   const sortedData = useMemo(() => {
     if (!sort) return data;
@@ -105,7 +119,7 @@ const DataTable = <T,>({
           ) : (
             sortedData.map((row, rIdx) => (
               <tr
-                key={rIdx}
+                key={getRowKey(row)}
                 className={rIdx % 2 === 0 ? "bg-white" : "bg-gray-50"}
               >
                 {columns.map((c, cIdx) => (

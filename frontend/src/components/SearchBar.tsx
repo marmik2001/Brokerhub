@@ -18,6 +18,10 @@ const SearchBar: React.FC<Props> = ({
   const debounced = useDebounce(q, 300);
 
   useEffect(() => {
+    setQ(initial);
+  }, [initial]);
+
+  useEffect(() => {
     onSearch(debounced.trim());
   }, [debounced, onSearch]);
 

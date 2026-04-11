@@ -1,5 +1,5 @@
 import React from "react";
-import EmptyState from "../components/EmptyState";
+import EmptyState from "../EmptyState";
 
 const FeedTab: React.FC = () => {
   return (

@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from "react";
-import DataTable from "../components/DataTable";
-import EmptyState from "../components/EmptyState";
-import SearchBar from "../components/SearchBar";
-import FilterChips, { type FilterKey } from "../components/FilterChips";
-import TableValueCell from "../components/TableValueCell";
-import StatCard from "../components/StatCard";
-import { type Position } from "../services/portfolioService";
+import DataTable from "../DataTable";
+import EmptyState from "../EmptyState";
+import { type FilterKey } from "../FilterChips";
+import TableValueCell from "../TableValueCell";
+import StatCard from "../StatCard";
+import { type Position } from "../../services/portfolioService";
+import PortfolioTabLayout from "./PortfolioTabLayout";
 
 type Props = {
   positions: Position[];
@@ -58,52 +58,36 @@ const PositionsTab: React.FC<Props> = ({
   }, [filtered]);
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <StatCard
-          title="Total Position Value"
-          value={`₹ ${totalValue.toLocaleString("en-IN")}`}
-        />
-        <StatCard
-          title={`P&L (${totalPnl >= 0 ? "Net gain" : "Net loss"})`}
-          value={
-            <TableValueCell
-              value={totalPnl}
-              currency={true}
-              colorize={true}
-              parenNegative={true}
-            />
-          }
-        />
-      </div>
-
-      <div className="space-y-3">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between">
-          <div className="flex-1 min-w-0">
-            <SearchBar
-              initial={search}
-              onSearch={setSearch}
-              placeholder="Search positions by symbol or ISIN"
-              ariaLabel="Search positions"
-            />
-            {partialTickers.length > 0 && (
-              <div className="text-sm text-gray-500 mt-1">
-                Held privately by other group members:{" "}
-                {partialTickers.join(", ")}
-              </div>
-            )}
-          </div>
-          <div>
-            <FilterChips
-              value={filter}
-              onChange={setFilter}
-              allowedKeys={POSITIONS_FILTERS}
-            />
-          </div>
+    <PortfolioTabLayout
+      title="Positions"
+      search={search}
+      onSearch={setSearch}
+      searchPlaceholder="Search positions by symbol or ISIN"
+      searchAriaLabel="Search positions"
+      filter={filter}
+      onFilterChange={setFilter}
+      allowedFilters={POSITIONS_FILTERS}
+      partialTickers={partialTickers}
+      stats={
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <StatCard
+            title="Total Position Value"
+            value={`₹ ${totalValue.toLocaleString("en-IN")}`}
+          />
+          <StatCard
+            title={`P&L (${totalPnl >= 0 ? "Net gain" : "Net loss"})`}
+            value={
+              <TableValueCell
+                value={totalPnl}
+                currency={true}
+                colorize={true}
+                parenNegative={true}
+              />
+            }
+          />
         </div>
-
-        <h3 className="text-lg font-medium">Positions</h3>
-
+      }
+    >
         {loading ? (
           <div className="p-6 bg-white border rounded">Loading...</div>
         ) : filtered.length === 0 ? (
@@ -160,8 +144,7 @@ const PositionsTab: React.FC<Props> = ({
             ]}
           />
         )}
-      </div>
-    </div>
+    </PortfolioTabLayout>
   );
 };
 
