@@ -1,0 +1,77 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: brokerhub-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-brokerhub}
+      POSTGRES_USER: ${POSTGRES_USER:-brokerhub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Welcome1}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-brokerhub} -d ${POSTGRES_DB:-brokerhub}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  market-data-service:
+    build:
+      context: ./market-data-service
+      dockerfile: Dockerfile
+    container_name: brokerhub-market-data
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./market-data-service:/app
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: brokerhub-backend
+    command: ./mvnw spring-boot:run
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-brokerhub}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-brokerhub}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-Welcome1}
+      MARKETDATA_BASE_URL: http://market-data-service:8000
+      JWT_SECRET: ${JWT_SECRET:-change-this-jwt-secret}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      APP_SECURITY_MASTER_KEY_BASE64: ${APP_SECURITY_MASTER_KEY_BASE64:-replace-with-base64-32-byte-key}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/app
+      - maven_cache:/root/.m2
+    depends_on:
+      db:
+        condition: service_healthy
+      market-data-service:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: brokerhub-frontend
+    command: npm run dev -- --host 0.0.0.0 --port 5173
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:8080
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  maven_cache:

@@ -67,6 +67,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # Env files
+.env
 frontend/.env
 frontend/.env.local
 frontend/.env.development.local
