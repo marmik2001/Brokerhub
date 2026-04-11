@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import api from "../api";
+import { listAccounts } from "../services/accountService";
 import type { AccountSummary } from "../services/authService";
 
 const SelectGroupPage: React.FC = () => {
@@ -21,10 +21,9 @@ const SelectGroupPage: React.FC = () => {
     (async () => {
       setLoading(true);
       try {
-        const resp = await api.get("/accounts");
-        // expected payload: [{ accountId, name, description, role, accountMemberId }]
+        const accounts = await listAccounts();
         if (!mounted) return;
-        setAccounts(resp.data || []);
+        setAccounts(accounts || []);
       } catch (e: any) {
         console.error("Failed to fetch accounts", e);
         if (mounted) setErr(e?.message || "Failed to load accounts");
