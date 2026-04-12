@@ -8,7 +8,7 @@ public final class SecurityConstants {
 
     public static final String[] PUBLIC_ENDPOINTS = {
             // Auth & User registration
-            "/api/auth/**",
+            "/api/auth/login",
             "/api/user/register",
 
             // Documentation & monitoring

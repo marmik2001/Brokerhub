@@ -29,7 +29,7 @@ public class BrokerCredentialController {
             String nickname) {
     }
 
-    /** Store broker credential (member of account only). */
+    /** Store broker credential (owner membership or account admin). */
     @PostMapping
     public ResponseEntity<?> store(
             @RequestBody StoreRequest req,
@@ -40,6 +40,12 @@ public class BrokerCredentialController {
 
         if (req.nickname() == null || req.nickname().isBlank()) {
             throw new IllegalArgumentException("nickname is required");
+        }
+        if (req.broker() == null || req.broker().isBlank()) {
+            throw new IllegalArgumentException("broker is required");
+        }
+        if (req.token() == null || req.token().isBlank()) {
+            throw new IllegalArgumentException("token is required");
         }
 
         byte[] tokenBytes = req.token().getBytes(StandardCharsets.UTF_8);
@@ -62,7 +68,7 @@ public class BrokerCredentialController {
         }
     }
 
-    /** List credentials for account member (member of account only). */
+    /** List credentials for account member (owner membership or account admin). */
     @GetMapping
     public ResponseEntity<?> list(
             @RequestParam("accountMemberId") String accountMemberId,
@@ -79,7 +85,7 @@ public class BrokerCredentialController {
                         "nickname", bc.getNickname())).toList());
     }
 
-    /** Delete credential (member of account only). */
+    /** Delete credential (owner membership or account admin). */
     @DeleteMapping("/{credentialId}")
     public ResponseEntity<?> delete(
             @PathVariable String credentialId,

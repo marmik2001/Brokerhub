@@ -21,6 +21,7 @@ import jakarta.annotation.PreDestroy;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 /**
@@ -36,6 +37,9 @@ import java.util.stream.Collectors;
 public class AccountPortfolioService {
 
     private static final Logger log = LoggerFactory.getLogger(AccountPortfolioService.class);
+    private static final Map<String, Object> EMPTY = Map.of(
+            "full", Collections.emptyList(),
+            "partial", Collections.emptyList());
 
     private final AccountMemberRepository memberRepo;
     private final BrokerCredentialRepository credentialRepo;
@@ -50,44 +54,30 @@ public class AccountPortfolioService {
         executor.shutdown();
     }
 
-    // A wrapper class to keep track of which member owns which holdings.
-    private static class MemberHoldings {
-        final AccountMember member;
-        final List<HoldingItem> holdings;
+    private static final class CredentialBundle {
+        final List<BrokerCredential> creds;
+        final Map<UUID, AccountMember> credOwner;
 
-        MemberHoldings(AccountMember m, List<HoldingItem> h) {
-            this.member = m;
-            this.holdings = h;
+        private CredentialBundle(List<BrokerCredential> creds, Map<UUID, AccountMember> credOwner) {
+            this.creds = creds;
+            this.credOwner = credOwner;
         }
     }
 
-    // For positions
-    private static class MemberPositions {
+    private static final class MemberItems<T> {
         final AccountMember member;
-        final List<PositionItem> positions;
+        final List<T> items;
 
-        MemberPositions(AccountMember m, List<PositionItem> p) {
-            this.member = m;
-            this.positions = p;
+        private MemberItems(AccountMember member, List<T> items) {
+            this.member = member;
+            this.items = items;
         }
     }
 
-    // ================================================================
-    // HOLDINGS (MAIN FLOW)
-    // ================================================================
-    public Map<String, Object> aggregateHoldingsForAccount(UUID accountId, UUID callerUserId) {
-
-        // 1) Fetch members for account
-        List<AccountMember> members = memberRepo.findByAccountId(accountId);
-        if (members.isEmpty()) {
-            return Map.of("full", Collections.emptyList(), "partial", Collections.emptyList());
-        }
-
-        // Build a lookup for each credential → its owning account member
+    private CredentialBundle collectCredentials(List<AccountMember> members) {
         Map<UUID, AccountMember> credOwner = new HashMap<>();
-
-        // 2) Collect credentials for all members
         List<BrokerCredential> creds = new ArrayList<>();
+
         for (AccountMember m : members) {
             try {
                 List<BrokerCredential> list = credentialRepo.findByAccountMemberId(m.getId());
@@ -102,98 +92,131 @@ public class AccountPortfolioService {
             }
         }
 
-        if (creds.isEmpty()) {
-            return Map.of("full", Collections.emptyList(), "partial", Collections.emptyList());
-        }
+        return new CredentialBundle(creds, credOwner);
+    }
 
-        // 3) Fetch holdings concurrently for each credential
-        List<CompletableFuture<MemberHoldings>> futures = new ArrayList<>();
-
-        for (BrokerCredential cred : creds) {
-            futures.add(CompletableFuture.supplyAsync(() -> {
-                byte[] plain = null;
-                try {
-                    UUID credId = cred.getCredentialId();
-
-                    // decrypt token (validates access)
-                    plain = credentialService.decryptCredentialToken(callerUserId, credId);
-                    if (plain == null || plain.length == 0) {
-                        return new MemberHoldings(credOwner.get(credId), Collections.emptyList());
-                    }
-
-                    String token = new String(plain, StandardCharsets.UTF_8);
-                    BrokerClient client = findClientForBroker(cred.getBroker());
-
-                    if (client == null) {
-                        log.warn("No broker client for type {}", cred.getBroker());
-                        return new MemberHoldings(credOwner.get(credId), Collections.emptyList());
-                    }
-
-                    List<HoldingItem> h = client.getHoldings(token);
-                    if (h == null)
-                        h = Collections.emptyList();
-
-                    return new MemberHoldings(credOwner.get(credId), h);
-
-                } catch (Exception e) {
-                    log.warn("Failed to fetch holdings for credential {}", safeIdString(cred));
-                    return new MemberHoldings(credOwner.get(cred.getCredentialId()), Collections.emptyList());
-                } finally {
-                    if (plain != null)
-                        Arrays.fill(plain, (byte) 0);
-                }
-            }, executor));
-        }
-
-        // 4) Wait for completions, gather results
-        List<MemberHoldings> fetched = new ArrayList<>();
+    private <R> List<R> awaitAll(List<CompletableFuture<R>> futures, long timeout, TimeUnit unit) {
+        List<R> fetched = new ArrayList<>();
 
         try {
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(30, TimeUnit.SECONDS);
-
-            for (CompletableFuture<MemberHoldings> cf : futures) {
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(timeout, unit);
+            for (CompletableFuture<R> cf : futures) {
                 try {
-                    MemberHoldings mh = cf.getNow(null);
-                    if (mh != null)
-                        fetched.add(mh);
+                    R r = cf.getNow(null);
+                    if (r != null) {
+                        fetched.add(r);
+                    }
                 } catch (Exception ignored) {
                 }
             }
-
+            return fetched;
         } catch (Exception ex) {
-            // gather partial results
-            for (CompletableFuture<MemberHoldings> cf : futures) {
+            for (CompletableFuture<R> cf : futures) {
                 if (cf.isDone() && !cf.isCompletedExceptionally()) {
                     try {
-                        MemberHoldings mh = cf.get();
-                        if (mh != null)
-                            fetched.add(mh);
+                        R r = cf.get();
+                        if (r != null) {
+                            fetched.add(r);
+                        }
                     } catch (Exception ignored) {
                     }
                 }
             }
             futures.forEach(f -> {
-                if (!f.isDone())
+                if (!f.isDone()) {
                     f.cancel(true);
+                }
             });
+            return fetched;
+        }
+    }
+
+    private <T> Map<AccountMember, List<T>> groupByMember(List<? extends MemberItems<T>> fetched) {
+        Map<AccountMember, List<T>> byMember = new HashMap<>();
+        for (MemberItems<T> mi : fetched) {
+            if (mi == null || mi.member == null) {
+                continue;
+            }
+            byMember.computeIfAbsent(mi.member, k -> new ArrayList<>())
+                    .addAll(mi.items);
+        }
+        return byMember;
+    }
+
+    private <T> List<T> fetchItems(
+            BrokerCredential cred,
+            UUID callerUserId,
+            BiFunction<BrokerClient, String, List<T>> brokerCall) {
+        byte[] plain = null;
+        try {
+            UUID credId = cred.getCredentialId();
+            plain = credentialService.decryptCredentialToken(callerUserId, credId);
+            if (plain == null || plain.length == 0) {
+                return Collections.emptyList();
+            }
+
+            String token = new String(plain, StandardCharsets.UTF_8);
+            BrokerClient client = findClientForBroker(cred.getBroker());
+            if (client == null) {
+                log.warn("No broker client for broker {}", cred.getBroker());
+                return Collections.emptyList();
+            }
+
+            List<T> out = brokerCall.apply(client, token);
+            return out == null ? Collections.emptyList() : out;
+        } catch (Exception e) {
+            log.warn("Failed to fetch data for credential {}", safeIdString(cred));
+            return Collections.emptyList();
+        } finally {
+            if (plain != null) {
+                Arrays.fill(plain, (byte) 0);
+            }
+        }
+    }
+
+    // ================================================================
+    // HOLDINGS (MAIN FLOW)
+    // ================================================================
+    public Map<String, Object> aggregateHoldingsForAccount(UUID accountId, UUID callerUserId) {
+
+        // 1) Fetch members for account
+        List<AccountMember> members = memberRepo.findByAccountId(accountId);
+        if (members.isEmpty()) {
+            return EMPTY;
         }
 
+        // 2) Collect credentials for all members
+        CredentialBundle bundle = collectCredentials(members);
+        List<BrokerCredential> creds = bundle.creds;
+        Map<UUID, AccountMember> credOwner = bundle.credOwner;
+
+        if (creds.isEmpty()) {
+            return EMPTY;
+        }
+
+        // 3) Fetch holdings concurrently for each credential
+        List<CompletableFuture<MemberItems<HoldingItem>>> futures = new ArrayList<>();
+
+        for (BrokerCredential cred : creds) {
+            futures.add(CompletableFuture.supplyAsync(() -> {
+                UUID credId = cred.getCredentialId();
+                List<HoldingItem> items = fetchItems(cred, callerUserId, BrokerClient::getHoldings);
+                return new MemberItems<>(credOwner.get(credId), items);
+            }, executor));
+        }
+
+        // 4) Wait for completions, gather results
+        List<MemberItems<HoldingItem>> fetched = awaitAll(futures, 30, TimeUnit.SECONDS);
+
         if (fetched.isEmpty()) {
-            return Map.of("full", Collections.emptyList(), "partial", Collections.emptyList());
+            return EMPTY;
         }
 
         // 5) Group: AccountMember → List<HoldingItem>
-        Map<AccountMember, List<HoldingItem>> byMember = new HashMap<>();
-
-        for (MemberHoldings mh : fetched) {
-            if (mh.member == null)
-                continue;
-            byMember.computeIfAbsent(mh.member, k -> new ArrayList<>())
-                    .addAll(mh.holdings);
-        }
+        Map<AccountMember, List<HoldingItem>> byMember = groupByMember(fetched);
 
         if (byMember.isEmpty()) {
-            return Map.of("full", Collections.emptyList(), "partial", Collections.emptyList());
+            return EMPTY;
         }
 
         // ================================================================
@@ -283,121 +306,41 @@ public class AccountPortfolioService {
         // 1) Fetch members for the account
         List<AccountMember> members = memberRepo.findByAccountId(accountId);
         if (members.isEmpty()) {
-            return Map.of("full", Collections.emptyList(), "partial", Collections.emptyList());
+            return EMPTY;
         }
-
-        // Lookup credential → owner
-        Map<UUID, AccountMember> credOwner = new HashMap<>();
 
         // 2) Collect creds for all members
-        List<BrokerCredential> creds = new ArrayList<>();
-        for (AccountMember m : members) {
-            try {
-                List<BrokerCredential> list = credentialRepo.findByAccountMemberId(m.getId());
-                if (list != null) {
-                    creds.addAll(list);
-                    for (BrokerCredential bc : list) {
-                        credOwner.put(bc.getCredentialId(), m);
-                    }
-                }
-            } catch (Exception ex) {
-                log.warn("Failed to list credentials for member {}", m.getId());
-            }
-        }
+        CredentialBundle bundle = collectCredentials(members);
+        List<BrokerCredential> creds = bundle.creds;
+        Map<UUID, AccountMember> credOwner = bundle.credOwner;
 
         if (creds.isEmpty()) {
-            return Map.of("full", Collections.emptyList(), "partial", Collections.emptyList());
+            return EMPTY;
         }
 
         // 3) Concurrent fetch positions
-        List<CompletableFuture<MemberPositions>> futures = new ArrayList<>();
+        List<CompletableFuture<MemberItems<PositionItem>>> futures = new ArrayList<>();
 
         for (BrokerCredential cred : creds) {
             futures.add(CompletableFuture.supplyAsync(() -> {
-                byte[] plain = null;
-                try {
-                    UUID credId = cred.getCredentialId();
-                    plain = credentialService.decryptCredentialToken(callerUserId, credId);
-
-                    if (plain == null || plain.length == 0) {
-                        return new MemberPositions(credOwner.get(credId), Collections.emptyList());
-                    }
-
-                    String token = new String(plain, StandardCharsets.UTF_8);
-                    BrokerClient client = findClientForBroker(cred.getBroker());
-
-                    if (client == null) {
-                        log.warn("No broker client for broker {}", cred.getBroker());
-                        return new MemberPositions(credOwner.get(credId), Collections.emptyList());
-                    }
-
-                    List<PositionItem> positions = client.getPositions(token);
-                    if (positions == null)
-                        positions = Collections.emptyList();
-
-                    return new MemberPositions(credOwner.get(credId), positions);
-
-                } catch (Exception e) {
-                    log.warn("Failed to fetch positions for credential {}", safeIdString(cred));
-                    return new MemberPositions(credOwner.get(cred.getCredentialId()), Collections.emptyList());
-                } finally {
-                    if (plain != null)
-                        Arrays.fill(plain, (byte) 0);
-                }
-
+                UUID credId = cred.getCredentialId();
+                List<PositionItem> items = fetchItems(cred, callerUserId, BrokerClient::getPositions);
+                return new MemberItems<>(credOwner.get(credId), items);
             }, executor));
         }
 
         // 4) Collect results
-        List<MemberPositions> fetched = new ArrayList<>();
-
-        try {
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(30, TimeUnit.SECONDS);
-
-            for (CompletableFuture<MemberPositions> cf : futures) {
-                try {
-                    MemberPositions mp = cf.getNow(null);
-                    if (mp != null)
-                        fetched.add(mp);
-                } catch (Exception ignored) {
-                }
-            }
-
-        } catch (Exception e) {
-
-            for (CompletableFuture<MemberPositions> cf : futures) {
-                if (cf.isDone() && !cf.isCompletedExceptionally()) {
-                    try {
-                        MemberPositions mp = cf.get();
-                        if (mp != null)
-                            fetched.add(mp);
-                    } catch (Exception ignored) {
-                    }
-                }
-            }
-
-            futures.forEach(f -> {
-                if (!f.isDone())
-                    f.cancel(true);
-            });
-        }
+        List<MemberItems<PositionItem>> fetched = awaitAll(futures, 30, TimeUnit.SECONDS);
 
         if (fetched.isEmpty()) {
-            return Map.of("full", Collections.emptyList(), "partial", Collections.emptyList());
+            return EMPTY;
         }
 
         // 5) Group: AccountMember → List<PositionItem>
-        Map<AccountMember, List<PositionItem>> byMember = new HashMap<>();
-
-        for (MemberPositions mp : fetched) {
-            if (mp.member == null)
-                continue;
-            byMember.computeIfAbsent(mp.member, k -> new ArrayList<>())
-                    .addAll(mp.positions);
-        }
+        Map<AccountMember, List<PositionItem>> byMember = groupByMember(fetched);
 
         if (byMember.isEmpty()) {
-            return Map.of("full", Collections.emptyList(), "partial", Collections.emptyList());
+            return EMPTY;
         }
 
         // 6) Determine caller

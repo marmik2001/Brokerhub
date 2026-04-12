@@ -5,6 +5,7 @@ import com.marmik.brokerhub.security.JwtUtil;
 import com.marmik.brokerhub.service.AuthService;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -50,6 +51,9 @@ public class AuthController {
     public ResponseEntity<?> changePassword(
             @RequestBody ChangePasswordRequest req,
             @AuthenticationPrincipal String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new AccessDeniedException("Authentication required");
+        }
 
         UUID caller = UUID.fromString(userId);
 

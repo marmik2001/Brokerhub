@@ -7,6 +7,7 @@ import com.marmik.brokerhub.repository.BrokerCredentialRepository;
 import com.marmik.brokerhub.security.EnvelopeEncryptionService;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,7 +22,6 @@ public class BrokerCredentialService {
     private final BrokerCredentialRepository repo;
     private final AccountMemberRepository accountMemberRepo;
     private final EnvelopeEncryptionService envelope;
-    private final AccountAccessValidator accessValidator;
 
     private static final String LOCAL_MASTER_KEY_ID = "local-master-v1";
 
@@ -36,10 +36,8 @@ public class BrokerCredentialService {
             String nickname,
             byte[] tokenPlain) throws Exception {
 
-        AccountMember am = accountMemberRepo.findById(accountMemberId)
-                .orElseThrow(() -> new IllegalArgumentException("Account member not found"));
-
-        accessValidator.requireMembership(callerUserId, am.getAccountId());
+        AccountMember targetMembership = getAccountMemberOrThrow(accountMemberId);
+        requireOwnerOrAdmin(callerUserId, targetMembership.getAccountId(), targetMembership.getId());
 
         byte[] dek = envelope.generateDek();
         try {
@@ -48,7 +46,7 @@ public class BrokerCredentialService {
             byte[] wrappedDek = envelope.wrapDek(dek);
 
             BrokerCredential bc = new BrokerCredential();
-            bc.setAccountMemberId(accountMemberId);
+            bc.setAccountMemberId(targetMembership.getId());
             bc.setBroker(broker);
             bc.setNickname(nickname);
             bc.setTokenCipher(enc.getCipherText());
@@ -70,10 +68,8 @@ public class BrokerCredentialService {
             UUID callerUserId,
             UUID accountMemberId) {
 
-        AccountMember am = accountMemberRepo.findById(accountMemberId)
-                .orElseThrow(() -> new IllegalArgumentException("Account member not found"));
-
-        accessValidator.requireMembership(callerUserId, am.getAccountId());
+        AccountMember targetMembership = getAccountMemberOrThrow(accountMemberId);
+        requireOwnerOrAdmin(callerUserId, targetMembership.getAccountId(), targetMembership.getId());
 
         return repo.findByAccountMemberId(accountMemberId);
     }
@@ -87,10 +83,8 @@ public class BrokerCredentialService {
         BrokerCredential cred = repo.findById(credentialId)
                 .orElseThrow(() -> new IllegalArgumentException("Credential not found"));
 
-        AccountMember am = accountMemberRepo.findById(cred.getAccountMemberId())
-                .orElseThrow(() -> new IllegalArgumentException("Account member not found"));
-
-        accessValidator.requireMembership(callerUserId, am.getAccountId());
+        AccountMember targetMembership = getAccountMemberOrThrow(cred.getAccountMemberId());
+        requireOwnerOrAdmin(callerUserId, targetMembership.getAccountId(), targetMembership.getId());
 
         repo.delete(cred);
     }
@@ -107,10 +101,8 @@ public class BrokerCredentialService {
         BrokerCredential cred = repo.findById(credentialId)
                 .orElseThrow(() -> new IllegalArgumentException("Credential not found"));
 
-        AccountMember am = accountMemberRepo.findById(cred.getAccountMemberId())
-                .orElseThrow(() -> new IllegalArgumentException("Account member not found"));
-
-        accessValidator.requireMembership(callerUserId, am.getAccountId());
+        AccountMember targetMembership = getAccountMemberOrThrow(cred.getAccountMemberId());
+        requireOwnerOrAdmin(callerUserId, targetMembership.getAccountId(), targetMembership.getId());
 
         byte[] dek = envelope.unwrapDek(cred.getTokenEncryptedDek());
         try {
@@ -120,6 +112,23 @@ public class BrokerCredentialService {
                     cred.getTokenCipher());
         } finally {
             Arrays.fill(dek, (byte) 0);
+        }
+    }
+
+    private AccountMember getAccountMemberOrThrow(UUID accountMemberId) {
+        return accountMemberRepo.findById(accountMemberId)
+                .orElseThrow(() -> new IllegalArgumentException("Account member not found"));
+    }
+
+    private void requireOwnerOrAdmin(UUID callerUserId, UUID accountId, UUID targetAccountMemberId) {
+        AccountMember callerMembership = accountMemberRepo
+                .findByUserIdAndAccountId(callerUserId, accountId)
+                .orElseThrow(() -> new AccessDeniedException("Not a member of this account"));
+
+        boolean isOwner = callerMembership.getId().equals(targetAccountMemberId);
+        boolean isAdmin = "ADMIN".equalsIgnoreCase(callerMembership.getRole());
+        if (!isOwner && !isAdmin) {
+            throw new AccessDeniedException("Only the credential owner or an account admin can perform this action");
         }
     }
 }

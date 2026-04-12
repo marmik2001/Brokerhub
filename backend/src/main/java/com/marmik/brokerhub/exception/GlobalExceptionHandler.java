@@ -1,6 +1,7 @@
 package com.marmik.brokerhub.exception;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -38,5 +39,14 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public Map<String, String> handleIllegalState(IllegalStateException ex) {
         return Map.of("error", ex.getMessage());
+    }
+
+    /**
+     * DB-level unique/constraint collisions that can still happen under races.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, String> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        return Map.of("error", "Request violates data integrity constraints");
     }
 }

@@ -42,10 +42,4 @@ public class AccountAccessValidator {
         }
     }
 
-    /**
-     * Returns true if user is a member of the account.
-     */
-    public boolean isMember(UUID userId, UUID accountId) {
-        return memberRepo.findByUserIdAndAccountId(userId, accountId).isPresent();
-    }
 }

@@ -95,11 +95,6 @@ public class AccountService {
         return memberRepo.findByAccountId(accountId);
     }
 
-    @Transactional(readOnly = true)
-    public List<AccountMember> listAccountsForUser(UUID userId) {
-        return memberRepo.findByUserId(userId);
-    }
-
     /**
      * Aggregated account view for "My Accounts" API.
      * Controller should call ONLY this.
@@ -178,14 +173,6 @@ public class AccountService {
 
         target.setRole(role.toUpperCase());
         return memberRepo.save(target);
-    }
-
-    /**
-     * Fetch an account by id.
-     */
-    @Transactional(readOnly = true)
-    public Optional<Account> getAccountById(UUID accountId) {
-        return accountRepo.findById(accountId);
     }
 
     /**

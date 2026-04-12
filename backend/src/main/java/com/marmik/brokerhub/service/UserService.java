@@ -76,7 +76,9 @@ public class UserService {
             throw new IllegalArgumentException("Password must be at least 6 characters");
         }
 
-        if (email != null && userRepo.findByEmail(email).isPresent()) {
+        String normalizedEmail = email == null ? null : email.trim().toLowerCase();
+
+        if (normalizedEmail != null && !normalizedEmail.isBlank() && userRepo.findByEmailIgnoreCase(normalizedEmail).isPresent()) {
             throw new IllegalArgumentException("Email already in use");
         }
         if (userRepo.findByLoginId(loginId).isPresent()) {
@@ -85,7 +87,7 @@ public class UserService {
 
         User user = new User();
         user.setLoginId(loginId);
-        user.setEmail(email != null ? email.toLowerCase() : null);
+        user.setEmail(normalizedEmail == null || normalizedEmail.isBlank() ? null : normalizedEmail);
         user.setMemberName(memberName);
         user.setPasswordHash(passwordEncoder.encode(rawPassword));
 
