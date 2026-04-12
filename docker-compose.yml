@@ -20,6 +20,20 @@ services:
       timeout: 5s
       retries: 20
 
+  redis:
+    image: redis:7-alpine
+    container_name: brokerhub-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   market-data-service:
     build:
       context: ./market-data-service
@@ -30,6 +44,13 @@ services:
       - "8000:8000"
     volumes:
       - ./market-data-service:/app
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CACHE_TTL_SECONDS: ${CACHE_TTL_SECONDS:-1200}
+      CACHE_TTL_JITTER_SECONDS: ${CACHE_TTL_JITTER_SECONDS:-30}
+    depends_on:
+      redis:
+        condition: service_healthy
 
   backend:
     build:
@@ -45,6 +66,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-this-jwt-secret}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
       APP_SECURITY_MASTER_KEY_BASE64: ${APP_SECURITY_MASTER_KEY_BASE64:-replace-with-base64-32-byte-key}
+      SPRING_DATA_REDIS_HOST: ${SPRING_DATA_REDIS_HOST:-redis}
+      SPRING_DATA_REDIS_PORT: ${SPRING_DATA_REDIS_PORT:-6379}
+      BROKER_HOLDINGS_CACHE_TTL_SECONDS: ${BROKER_HOLDINGS_CACHE_TTL_SECONDS:-43200}
     ports:
       - "8080:8080"
     volumes:
@@ -52,6 +76,8 @@ services:
       - maven_cache:/root/.m2
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       market-data-service:
         condition: service_started
@@ -75,3 +101,4 @@ services:
 volumes:
   postgres_data:
   maven_cache:
+  redis_data:

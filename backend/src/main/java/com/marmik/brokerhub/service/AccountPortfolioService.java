@@ -45,6 +45,7 @@ public class AccountPortfolioService {
     private final AccountMemberRepository memberRepo;
     private final BrokerCredentialRepository credentialRepo;
     private final BrokerCredentialService credentialService;
+    private final BrokerHoldingsCacheService holdingsCacheService;
     private final List<BrokerClient> brokerClients;
 
     private final ExecutorService executor = Executors.newFixedThreadPool(
@@ -215,6 +216,43 @@ public class AccountPortfolioService {
         return groupByMember(fetched);
     }
 
+    private List<HoldingItem> fetchHoldingsWithCache(BrokerCredential cred, UUID callerUserId) {
+        UUID credId = cred.getCredentialId();
+        Optional<List<HoldingItem>> cached = holdingsCacheService.getCachedHoldings(cred.getBroker(), credId);
+        if (cached.isPresent()) {
+            return cached.get();
+        }
+
+        List<HoldingItem> fetched = fetchItems(cred, callerUserId, BrokerClient::getHoldings);
+        if (fetched != null && !fetched.isEmpty()) {
+            holdingsCacheService.cacheHoldings(cred.getBroker(), credId, fetched);
+        }
+        return fetched == null ? Collections.emptyList() : fetched;
+    }
+
+    private Map<AccountMember, List<HoldingItem>> fetchHoldingsByMember(
+            List<BrokerCredential> creds,
+            Map<UUID, AccountMember> credOwner,
+            UUID callerUserId) {
+
+        List<CompletableFuture<MemberItems<HoldingItem>>> futures = new ArrayList<>();
+
+        for (BrokerCredential cred : creds) {
+            futures.add(CompletableFuture.supplyAsync(() -> {
+                UUID credId = cred.getCredentialId();
+                List<HoldingItem> items = fetchHoldingsWithCache(cred, callerUserId);
+                return new MemberItems<>(credOwner.get(credId), items);
+            }, executor));
+        }
+
+        List<MemberItems<HoldingItem>> fetched = awaitAll(futures, 30, TimeUnit.SECONDS);
+        if (fetched.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        return groupByMember(fetched);
+    }
+
     private AccountMember findCallerMember(List<AccountMember> members, UUID callerUserId) {
         return members.stream()
                 .filter(m -> m.getUser().getId().equals(callerUserId))
@@ -279,11 +317,10 @@ public class AccountPortfolioService {
         }
 
         // 3) Fetch holdings concurrently and regroup by member.
-        Map<AccountMember, List<HoldingItem>> byMember = fetchByMember(
+        Map<AccountMember, List<HoldingItem>> byMember = fetchHoldingsByMember(
                 creds,
                 credOwner,
-                callerUserId,
-                BrokerClient::getHoldings);
+                callerUserId);
 
         if (byMember.isEmpty()) {
             return EMPTY;

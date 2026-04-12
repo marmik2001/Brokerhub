@@ -1,26 +1,36 @@
 # services.py
 import logging
+import json
+import os
+import random
 import threading
-from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 
 import yfinance as yf
 import pandas as pd
+import redis
 
 from app.models import PriceResponse
 
 logger = logging.getLogger(__name__)
 
-# thread-safe in-memory cache: symbol -> (PriceResponse, timestamp)
+# local in-flight dedupe only (cache is Redis)
 _cache_lock = threading.Lock()
-_cache: Dict[str, Tuple[PriceResponse, datetime]] = {}
 _inflight: Dict[str, threading.Event] = {}  # per-symbol in-flight marker
-CACHE_TTL = timedelta(seconds=1200)  # keep short to avoid rate limits
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "1200"))
+CACHE_TTL_JITTER_SECONDS = int(os.getenv("CACHE_TTL_JITTER_SECONDS", "30"))
 _BATCH_CHUNK = 50  # safety: don't request too many tickers in one yfinance call
 
-def _now() -> datetime:
-    """Return timezone-aware UTC time."""
-    return datetime.now(timezone.utc)
+_redis_client: Optional[redis.Redis] = None
+
+try:
+    _redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+    _redis_client.ping()
+    logger.info("Connected to Redis for market-data cache: %s", REDIS_URL)
+except Exception as exc:
+    logger.warning("Redis unavailable (%s). Running without shared cache.", exc)
+    _redis_client = None
 
 def _make_price_response_from_hist(symbol: str, hist: Optional[pd.DataFrame]) -> PriceResponse:
     """
@@ -68,15 +78,36 @@ def fetch_price_single(symbol: str, force_refresh: bool = False) -> PriceRespons
     """Fetch a single symbol using the batch path for consistency."""
     return fetch_prices_batch([symbol], force_refresh=force_refresh)[0]
 
-def _get_cached_if_fresh(sym: str, now: datetime) -> Optional[PriceResponse]:
-    """Helper: return cached PriceResponse if present and not expired."""
-    with _cache_lock:
-        cached = _cache.get(sym)
-    if cached:
-        resp, ts = cached
-        if now - ts < CACHE_TTL:
-            return resp
+def _cache_key(sym: str) -> str:
+    return f"md:price:{sym.upper()}"
+
+
+def _serialize_price(resp: PriceResponse) -> str:
+    payload = resp.model_dump() if hasattr(resp, "model_dump") else resp.dict()
+    return json.dumps(payload)
+
+
+def _get_cached_if_fresh(sym: str) -> Optional[PriceResponse]:
+    """Return cached PriceResponse from Redis if present (TTL handled by Redis)."""
+    if _redis_client is None:
+        return None
+    try:
+        raw = _redis_client.get(_cache_key(sym))
+        if raw:
+            return PriceResponse(**json.loads(raw))
+    except Exception as exc:
+        logger.debug("Redis get failed for %s: %s", sym, exc)
     return None
+
+
+def _cache_response(sym: str, response: PriceResponse) -> None:
+    if _redis_client is None:
+        return
+    ttl = CACHE_TTL_SECONDS + random.randint(0, max(0, CACHE_TTL_JITTER_SECONDS))
+    try:
+        _redis_client.setex(_cache_key(sym), ttl, _serialize_price(response))
+    except Exception as exc:
+        logger.debug("Redis set failed for %s: %s", sym, exc)
 
 def fetch_prices_batch(symbols: List[str], force_refresh: bool = False) -> List[PriceResponse]:
     """
@@ -86,14 +117,13 @@ def fetch_prices_batch(symbols: List[str], force_refresh: bool = False) -> List[
     if not symbols:
         return []
 
-    now = _now()
     results_map: Dict[str, PriceResponse] = {}
     to_fetch: List[str] = []
 
     # 1) Try to serve from cache or detect inflight fetches
     for sym in symbols:
         if not force_refresh:
-            cached_resp = _get_cached_if_fresh(sym, now)
+            cached_resp = _get_cached_if_fresh(sym)
             if cached_resp:
                 results_map[sym] = cached_resp
                 continue
@@ -106,7 +136,7 @@ def fetch_prices_batch(symbols: List[str], force_refresh: bool = False) -> List[
             # wait a short time for the inflight fetch to complete
             wait_event.wait(timeout=10)
             # try cache again
-            cached_resp = _get_cached_if_fresh(sym, _now())
+            cached_resp = _get_cached_if_fresh(sym)
             if cached_resp:
                 results_map[sym] = cached_resp
                 continue
@@ -167,8 +197,7 @@ def fetch_prices_batch(symbols: List[str], force_refresh: bool = False) -> List[
                     response = _make_price_response_from_hist(sym, hist)
                     # cache valid results
                     if response.lastPrice and response.lastPrice != 0:
-                        with _cache_lock:
-                            _cache[sym] = (response, _now())
+                        _cache_response(sym, response)
                     else:
                         # do not aggressively cache failures; still put in results_map so caller gets fallback
                         pass
@@ -188,13 +217,7 @@ def fetch_prices_batch(symbols: List[str], force_refresh: bool = False) -> List[
     for sym in symbols:
         resp = results_map.get(sym)
         if resp is None:
-            # if cache contains stale value, return it (best-effort)
-            with _cache_lock:
-                cached = _cache.get(sym)
-            if cached:
-                resp = cached[0]
-            else:
-                resp = PriceResponse(symbol=sym, lastPrice=0, dayChange=0, dayChangePercentage=0)
+            resp = PriceResponse(symbol=sym, lastPrice=0, dayChange=0, dayChangePercentage=0)
         results.append(resp)
 
     return results

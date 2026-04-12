@@ -10,6 +10,11 @@ spring.datasource.password=<>
 # Market data service
 marketdata.base-url = <>
 
+# Redis
+spring.data.redis.host=<>
+spring.data.redis.port=<>
+broker.holdings-cache.ttl-seconds=43200
+
 # Hibernate / JPA (let Flyway manage schema, not Hibernate)
 spring.jpa.hibernate.ddl-auto=validate
 spring.jpa.show-sql=true

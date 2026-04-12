@@ -43,6 +43,8 @@ class AccountPortfolioServiceTest {
         @Mock
         private BrokerCredentialService credentialService;
         @Mock
+        private BrokerHoldingsCacheService holdingsCacheService;
+        @Mock
         private BrokerClient brokerClient;
 
         private AccountPortfolioService service;
@@ -50,7 +52,10 @@ class AccountPortfolioServiceTest {
         @BeforeEach
         void setUp() {
                 service = new AccountPortfolioService(memberRepo, credentialRepo, credentialService,
+                                holdingsCacheService,
                                 List.of(brokerClient));
+
+                lenient().when(holdingsCacheService.getCachedHoldings(anyString(), any())).thenReturn(Optional.empty());
         }
 
         @Test
