@@ -16,16 +16,16 @@ BrokerHub supports portfolio collaboration where users need:
 
 ## Key Features
 
-| Area | Capability | Implementation Highlights |
-| --- | --- | --- |
-| Identity & Access | JWT-based stateless auth + account-scoped roles | Global user identity (`users`) with per-account membership (`account_member`), role enforcement via membership checks |
-| Group / Account Model | Multi-account architecture | A single user can belong to multiple accounts with different roles and privacy rules |
-| RBAC | Admin / Member controls | Admin can manage account members and roles; members manage their own settings and broker credentials |
-| Privacy-Aware Portfolio Sharing | Per-member privacy modes | `DETAILED`, `SUMMARY`, `PRIVATE` modes applied during aggregation output |
-| Broker Credentials | Envelope encryption at rest | Per-record DEKs + AES-256-GCM + master-key wrapping, with sensitive buffer zeroing patterns |
-| Broker Integration | Unified broker abstraction | `BrokerClient` interface enables broker-specific adapters behind a consistent holdings/positions contract |
-| Portfolio Aggregation | Concurrent fan-out aggregation | Parallel fetch across credentials, timeout-bound execution, partial-result tolerance |
-| Market Data | Dedicated microservice | Separate FastAPI service provides batch symbol pricing with caching and in-flight deduplication |
+| Area                            | Capability                                      | Implementation Highlights                                                                                             |
+| ------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Identity & Access               | JWT-based stateless auth + account-scoped roles | Global user identity (`users`) with per-account membership (`account_member`), role enforcement via membership checks |
+| Group / Account Model           | Multi-account architecture                      | A single user can belong to multiple accounts with different roles and privacy rules                                  |
+| RBAC                            | Admin / Member controls                         | Admin can manage account members and roles; members manage their own settings and broker credentials                  |
+| Privacy-Aware Portfolio Sharing | Per-member privacy modes                        | `DETAILED`, `SUMMARY`, `PRIVATE` modes applied during aggregation output                                              |
+| Broker Credentials              | Envelope encryption at rest                     | Per-record DEKs + AES-256-GCM + master-key wrapping, with sensitive buffer zeroing patterns                           |
+| Broker Integration              | Unified broker abstraction                      | `BrokerClient` interface enables broker-specific adapters behind a consistent holdings/positions contract             |
+| Portfolio Aggregation           | Concurrent fan-out aggregation                  | Parallel fetch across credentials, timeout-bound execution, partial-result tolerance                                  |
+| Market Data                     | Dedicated microservice                          | Separate FastAPI service provides batch symbol pricing with caching and in-flight deduplication                       |
 
 ## Architecture
 
@@ -70,11 +70,11 @@ Security-related implementation includes:
 
 Privacy is applied at the account-membership level and enforced during aggregation:
 
-| Mode | What Other Members See |
-| --- | --- |
-| `DETAILED` | Full aggregated position/holding details |
-| `SUMMARY` | Symbol-level visibility without full detail payload |
-| `PRIVATE` | Data excluded from shared group aggregation views |
+| Mode       | What Other Members See                              |
+| ---------- | --------------------------------------------------- |
+| `DETAILED` | Full aggregated position/holding details            |
+| `SUMMARY`  | Symbol-level visibility without full detail payload |
+| `PRIVATE`  | Data excluded from shared group aggregation views   |
 
 Behavioral notes:
 
@@ -94,15 +94,15 @@ The portfolio service includes:
 
 ## Tech Stack
 
-| Layer | Technology |
-| --- | --- |
-| Backend API | Java 17, Spring Boot, Spring Security, Spring Data JPA |
-| Auth | JWT (JJWT), BCrypt |
-| Database | PostgreSQL, Flyway |
-| Broker Calls | OkHttp, custom broker adapters |
-| Market Data Service | FastAPI, yFinance, pandas |
-| Frontend | React, TypeScript, Tailwind CSS, Vite |
-| Local Runtime | Docker Compose |
+| Layer               | Technology                                             |
+| ------------------- | ------------------------------------------------------ |
+| Backend API         | Java 17, Spring Boot, Spring Security, Spring Data JPA |
+| Auth                | JWT (JJWT), BCrypt                                     |
+| Database            | PostgreSQL, Flyway                                     |
+| Broker Calls        | OkHttp, custom broker adapters                         |
+| Market Data Service | FastAPI, yFinance, pandas                              |
+| Frontend            | React, TypeScript, Tailwind CSS, Vite                  |
+| Local Runtime       | Docker Compose                                         |
 
 ## Local Development
 
@@ -147,15 +147,30 @@ docker compose down
 docker compose down -v
 ```
 
+### Testing
+
+```bash
+# Run backend tests from repo root
+./backend/mvnw -f backend/pom.xml test
+
+# Or from backend directory
+cd backend && ./mvnw test
+```
+
+### CI
+
+- Backend tests are executed in GitHub Actions via `.github/workflows/backend-tests.yml`.
+- Sensitive CI values are provided through GitHub Secrets (for example: `JWT_SECRET`, `APP_SECURITY_MASTER_KEY_BASE64`).
+
 ## API Surface
 
-| Domain | Endpoints |
-| --- | --- |
-| Auth | `/api/user/register`, `/api/auth/login`, `/api/auth/change-password` |
-| Accounts | `/api/accounts`, `/api/accounts/{accountId}/members`, role and privacy update routes |
-| Broker Credentials | `/api/brokers` (store/list/delete) |
-| Aggregation | `/api/accounts/{accountId}/aggregate-holdings`, `/api/accounts/{accountId}/aggregate-positions` |
-| Profile | `/api/user/me` |
+| Domain             | Endpoints                                                                                       |
+| ------------------ | ----------------------------------------------------------------------------------------------- |
+| Auth               | `/api/user/register`, `/api/auth/login`, `/api/auth/change-password`                            |
+| Accounts           | `/api/accounts`, `/api/accounts/{accountId}/members`, role and privacy update routes            |
+| Broker Credentials | `/api/brokers` (store/list/delete)                                                              |
+| Aggregation        | `/api/accounts/{accountId}/aggregate-holdings`, `/api/accounts/{accountId}/aggregate-positions` |
+| Profile            | `/api/user/me`                                                                                  |
 
 ## Design Notes
 
@@ -172,5 +187,5 @@ The current implementation includes:
 - Expand broker coverage via the existing broker abstraction layer
 - Introduce richer analytics and account-level performance insights
 - Strengthen observability (structured metrics, tracing, operational dashboards)
-- Add broader automated test coverage across auth, security, and aggregation paths
+- Expand automated test coverage further (controllers, integration, end-to-end)
 - Evolve key lifecycle and rotation workflows for encrypted credential management
