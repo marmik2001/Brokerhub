@@ -25,12 +25,13 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 /**
- * Concrete implementation of AccountHoldingsService.
+ * Aggregates holdings and positions across all members in an account.
  *
- * - Concurrently fetch holdings per credential using a bounded executor.
- * - Rely on BrokerCredentialService.decryptCredentialToken(...) to validate
- * access and decrypt.
- * - Never log tokens/cleartext; zero byte[] buffers after use.
+ * Design notes:
+ * - Fetches broker data concurrently with a bounded executor.
+ * - Uses BrokerCredentialService for authorization + token decryption.
+ * - Applies member privacy rules before producing caller-visible output.
+ * - Avoids logging secret values and zeroes decrypted token bytes after use.
  */
 @Service
 @RequiredArgsConstructor
@@ -71,6 +72,22 @@ public class AccountPortfolioService {
         private MemberItems(AccountMember member, List<T> items) {
             this.member = member;
             this.items = items;
+        }
+    }
+
+    private enum PrivacyLevel {
+        DETAILED,
+        SUMMARY,
+        PRIVATE
+    }
+
+    private static final class VisibilityResult<T> {
+        final List<T> fullItems;
+        final Set<String> partialTickers;
+
+        private VisibilityResult(List<T> fullItems, Set<String> partialTickers) {
+            this.fullItems = fullItems;
+            this.partialTickers = partialTickers;
         }
     }
 
@@ -174,18 +191,85 @@ public class AccountPortfolioService {
         }
     }
 
-    // ================================================================
-    // HOLDINGS (MAIN FLOW)
-    // ================================================================
+    private <T> Map<AccountMember, List<T>> fetchByMember(
+            List<BrokerCredential> creds,
+            Map<UUID, AccountMember> credOwner,
+            UUID callerUserId,
+            BiFunction<BrokerClient, String, List<T>> brokerCall) {
+
+        List<CompletableFuture<MemberItems<T>>> futures = new ArrayList<>();
+
+        for (BrokerCredential cred : creds) {
+            futures.add(CompletableFuture.supplyAsync(() -> {
+                UUID credId = cred.getCredentialId();
+                List<T> items = fetchItems(cred, callerUserId, brokerCall);
+                return new MemberItems<>(credOwner.get(credId), items);
+            }, executor));
+        }
+
+        List<MemberItems<T>> fetched = awaitAll(futures, 30, TimeUnit.SECONDS);
+        if (fetched.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        return groupByMember(fetched);
+    }
+
+    private AccountMember findCallerMember(List<AccountMember> members, UUID callerUserId) {
+        return members.stream()
+                .filter(m -> m.getUser().getId().equals(callerUserId))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private boolean isAdmin(AccountMember callerMember) {
+        String callerRole = callerMember == null ? "MEMBER" : callerMember.getRole();
+        return "ADMIN".equalsIgnoreCase(callerRole);
+    }
+
+    private <T> VisibilityResult<T> applyPrivacyRules(
+            Map<AccountMember, List<T>> byMember,
+            AccountMember callerMember,
+            java.util.function.Function<T, String> symbolExtractor) {
+
+        List<T> fullInput = new ArrayList<>();
+        Set<String> partialTickers = new HashSet<>();
+
+        for (Map.Entry<AccountMember, List<T>> entry : byMember.entrySet()) {
+            AccountMember m = entry.getKey();
+            List<T> items = entry.getValue();
+
+            PrivacyLevel privacy = extractPrivacyLevel(m.getRules());
+            boolean detailedForCaller = m.equals(callerMember) || privacy == PrivacyLevel.DETAILED;
+
+            if (detailedForCaller) {
+                fullInput.addAll(items);
+                continue;
+            }
+
+            if (privacy == PrivacyLevel.SUMMARY) {
+                for (T item : items) {
+                    String symbol = symbolExtractor.apply(item);
+                    if (symbol != null) {
+                        partialTickers.add(symbol);
+                    }
+                }
+            }
+        }
+
+        return new VisibilityResult<>(fullInput, partialTickers);
+    }
+
+    // ---------- Holdings flow ----------
     public Map<String, Object> aggregateHoldingsForAccount(UUID accountId, UUID callerUserId) {
 
-        // 1) Fetch members for account
+        // 1) Load members.
         List<AccountMember> members = memberRepo.findByAccountId(accountId);
         if (members.isEmpty()) {
             return EMPTY;
         }
 
-        // 2) Collect credentials for all members
+        // 2) Load broker credentials and map each credential to its owner member.
         CredentialBundle bundle = collectCredentials(members);
         List<BrokerCredential> creds = bundle.creds;
         Map<UUID, AccountMember> credOwner = bundle.credOwner;
@@ -194,55 +278,30 @@ public class AccountPortfolioService {
             return EMPTY;
         }
 
-        // 3) Fetch holdings concurrently for each credential
-        List<CompletableFuture<MemberItems<HoldingItem>>> futures = new ArrayList<>();
-
-        for (BrokerCredential cred : creds) {
-            futures.add(CompletableFuture.supplyAsync(() -> {
-                UUID credId = cred.getCredentialId();
-                List<HoldingItem> items = fetchItems(cred, callerUserId, BrokerClient::getHoldings);
-                return new MemberItems<>(credOwner.get(credId), items);
-            }, executor));
-        }
-
-        // 4) Wait for completions, gather results
-        List<MemberItems<HoldingItem>> fetched = awaitAll(futures, 30, TimeUnit.SECONDS);
-
-        if (fetched.isEmpty()) {
-            return EMPTY;
-        }
-
-        // 5) Group: AccountMember → List<HoldingItem>
-        Map<AccountMember, List<HoldingItem>> byMember = groupByMember(fetched);
+        // 3) Fetch holdings concurrently and regroup by member.
+        Map<AccountMember, List<HoldingItem>> byMember = fetchByMember(
+                creds,
+                credOwner,
+                callerUserId,
+                BrokerClient::getHoldings);
 
         if (byMember.isEmpty()) {
             return EMPTY;
         }
 
-        // ================================================================
-        // 6) Determine caller’s own membership + role
-        // ================================================================
-        AccountMember callerMember = members.stream()
-                .filter(m -> m.getUser().getId().equals(callerUserId))
-                .findFirst()
-                .orElse(null);
+        // 4) Resolve caller membership in this account.
+        AccountMember callerMember = findCallerMember(members, callerUserId);
 
-        String callerRole = callerMember == null
-                ? "MEMBER"
-                : callerMember.getRole();
+        // 5) Admins see full data for everyone.
+        if (isAdmin(callerMember)) {
 
-        // ================================================================
-        // 7) ADMIN → bypass all privacy; return everything as full
-        // ================================================================
-        if ("ADMIN".equalsIgnoreCase(callerRole)) {
-
-            // Combine ALL member holdings into single list
+            // Flatten all holdings before aggregation.
             List<HoldingItem> all = new ArrayList<>();
             for (List<HoldingItem> list : byMember.values()) {
                 all.addAll(list);
             }
 
-            // Run aggregation on full list
+            // Aggregate full holdings.
             List<AggregatedHolding> aggregated = aggregateHoldings(all);
 
             return Map.of(
@@ -250,66 +309,33 @@ public class AccountPortfolioService {
                     "partial", Collections.emptyList());
         }
 
-        // ================================================================
-        // 8) MEMBER CALLER → apply privacy rules member-by-member
-        // ================================================================
-        List<HoldingItem> fullInput = new ArrayList<>();
-        Set<String> partialTickers = new HashSet<>();
+        // 6) Non-admins are filtered by privacy rules.
+        VisibilityResult<HoldingItem> visible = applyPrivacyRules(
+                byMember,
+                callerMember,
+                HoldingItem::getTradingSymbol);
 
-        for (Map.Entry<AccountMember, List<HoldingItem>> entry : byMember.entrySet()) {
+        // 7) Aggregate only caller-visible full items.
+        List<AggregatedHolding> aggregatedFull = aggregateHoldings(visible.fullItems);
 
-            AccountMember m = entry.getKey();
-            List<HoldingItem> theirItems = entry.getValue();
-
-            // Determine privacy from rules JSON
-            String privacy = extractPrivacy(m.getRules());
-
-            boolean detailedForCaller = m.equals(callerMember) ||
-                    "DETAILED".equalsIgnoreCase(privacy);
-
-            if (detailedForCaller) {
-                fullInput.addAll(theirItems);
-                continue;
-            }
-
-            if ("SUMMARY".equalsIgnoreCase(privacy)) {
-                for (HoldingItem h : theirItems) {
-                    if (h.getTradingSymbol() != null) {
-                        partialTickers.add(h.getTradingSymbol());
-                    }
-                }
-                continue;
-            }
-
-            // PRIVATE → ignore entirely
-            // no action
-        }
-
-        // ================================================================
-        // 9) Aggregate the FULL holdings list (existing aggregation logic)
-        // ================================================================
-        List<AggregatedHolding> aggregatedFull = aggregateHoldings(fullInput);
-
-        // Final output object shape
+        // Preserve response contract: full aggregated data + partial symbols.
         Map<String, Object> finalResult = Map.of(
                 "full", aggregatedFull,
-                "partial", partialTickers);
+                "partial", visible.partialTickers);
 
         return finalResult;
     }
 
-    // ================================================================
-    // POSITIONS FLOW (MIRROR TO HOLDINGS)
-    // ================================================================
+    // ---------- Positions flow (same pipeline as holdings) ----------
     public Map<String, Object> aggregatePositionsForAccount(UUID accountId, UUID callerUserId) {
 
-        // 1) Fetch members for the account
+        // 1) Load members.
         List<AccountMember> members = memberRepo.findByAccountId(accountId);
         if (members.isEmpty()) {
             return EMPTY;
         }
 
-        // 2) Collect creds for all members
+        // 2) Load broker credentials and map each credential to its owner member.
         CredentialBundle bundle = collectCredentials(members);
         List<BrokerCredential> creds = bundle.creds;
         Map<UUID, AccountMember> credOwner = bundle.credOwner;
@@ -318,43 +344,22 @@ public class AccountPortfolioService {
             return EMPTY;
         }
 
-        // 3) Concurrent fetch positions
-        List<CompletableFuture<MemberItems<PositionItem>>> futures = new ArrayList<>();
-
-        for (BrokerCredential cred : creds) {
-            futures.add(CompletableFuture.supplyAsync(() -> {
-                UUID credId = cred.getCredentialId();
-                List<PositionItem> items = fetchItems(cred, callerUserId, BrokerClient::getPositions);
-                return new MemberItems<>(credOwner.get(credId), items);
-            }, executor));
-        }
-
-        // 4) Collect results
-        List<MemberItems<PositionItem>> fetched = awaitAll(futures, 30, TimeUnit.SECONDS);
-
-        if (fetched.isEmpty()) {
-            return EMPTY;
-        }
-
-        // 5) Group: AccountMember → List<PositionItem>
-        Map<AccountMember, List<PositionItem>> byMember = groupByMember(fetched);
+        // 3) Fetch positions concurrently and regroup by member.
+        Map<AccountMember, List<PositionItem>> byMember = fetchByMember(
+                creds,
+                credOwner,
+                callerUserId,
+                BrokerClient::getPositions);
 
         if (byMember.isEmpty()) {
             return EMPTY;
         }
 
-        // 6) Determine caller
-        AccountMember callerMember = members.stream()
-                .filter(m -> m.getUser().getId().equals(callerUserId))
-                .findFirst()
-                .orElse(null);
+        // 4) Resolve caller membership.
+        AccountMember callerMember = findCallerMember(members, callerUserId);
 
-        String callerRole = callerMember == null
-                ? "MEMBER"
-                : callerMember.getRole();
-
-        // 7) ADMIN bypass
-        if ("ADMIN".equalsIgnoreCase(callerRole)) {
+        // 5) Admins see full data for everyone.
+        if (isAdmin(callerMember)) {
 
             List<PositionItem> all = new ArrayList<>();
             for (List<PositionItem> list : byMember.values()) {
@@ -368,84 +373,63 @@ public class AccountPortfolioService {
                     "partial", Collections.emptyList());
         }
 
-        // 8) MEMBER privacy filtering
-        List<PositionItem> fullInput = new ArrayList<>();
-        Set<String> partialTickers = new HashSet<>();
+        // 6) Non-admins are filtered by privacy rules.
+        VisibilityResult<PositionItem> visible = applyPrivacyRules(
+                byMember,
+                callerMember,
+                PositionItem::getTradingSymbol);
 
-        for (Map.Entry<AccountMember, List<PositionItem>> entry : byMember.entrySet()) {
-
-            AccountMember m = entry.getKey();
-            List<PositionItem> items = entry.getValue();
-            String privacy = extractPrivacy(m.getRules());
-
-            boolean detailedForCaller = m.equals(callerMember) ||
-                    "DETAILED".equalsIgnoreCase(privacy);
-
-            if (detailedForCaller) {
-                fullInput.addAll(items);
-                continue;
-            }
-
-            if ("SUMMARY".equalsIgnoreCase(privacy)) {
-                for (PositionItem p : items) {
-                    if (p.getTradingSymbol() != null) {
-                        partialTickers.add(p.getTradingSymbol());
-                    }
-                }
-                continue;
-            }
-
-            // PRIVATE → skip
-        }
-
-        List<AggregatedPosition> aggregatedFull = aggregatePositions(fullInput);
+        List<AggregatedPosition> aggregatedFull = aggregatePositions(visible.fullItems);
 
         return Map.of(
                 "full", aggregatedFull,
-                "partial", partialTickers);
+                "partial", visible.partialTickers);
     }
 
-    // ================================================================
-    // PRIVACY PARSER
-    // Extracts "privacy" from rules JSON ("DETAILED", "SUMMARY", "PRIVATE").
-    // Defaults to DETAILED on errors or missing value.
-    // ================================================================
-    private String extractPrivacy(String rulesJson) {
+    /**
+     * Parses privacy level from rules JSON.
+     *
+     * Expected values: DETAILED, SUMMARY, PRIVATE.
+     * Defaults:
+     * - missing/blank/malformed key -> PRIVATE
+     * - unrecognized value or parser error -> DETAILED
+     */
+    private PrivacyLevel extractPrivacyLevel(String rulesJson) {
         if (rulesJson == null || rulesJson.isBlank())
-            return "PRIVATE";
+            return PrivacyLevel.PRIVATE;
 
         try {
-            // Very minimal JSON parsing: look for "privacy":"VALUE"
+            // Lightweight parsing: find "privacy":"VALUE" without JSON binding.
             int keyIdx = rulesJson.indexOf("\"privacy\"");
             if (keyIdx < 0)
-                return "PRIVATE";
+                return PrivacyLevel.PRIVATE;
 
             int colonIdx = rulesJson.indexOf(':', keyIdx);
             if (colonIdx < 0)
-                return "PRIVATE";
+                return PrivacyLevel.PRIVATE;
 
             int firstQuote = rulesJson.indexOf('"', colonIdx + 1);
             if (firstQuote < 0)
-                return "PRIVATE";
+                return PrivacyLevel.PRIVATE;
 
             int secondQuote = rulesJson.indexOf('"', firstQuote + 1);
             if (secondQuote < 0)
-                return "PRIVATE";
+                return PrivacyLevel.PRIVATE;
 
             String value = rulesJson.substring(firstQuote + 1, secondQuote).trim().toUpperCase();
             return switch (value) {
-                case "DETAILED", "SUMMARY", "PRIVATE" -> value;
-                default -> "DETAILED";
+                case "DETAILED" -> PrivacyLevel.DETAILED;
+                case "SUMMARY" -> PrivacyLevel.SUMMARY;
+                case "PRIVATE" -> PrivacyLevel.PRIVATE;
+                default -> PrivacyLevel.DETAILED;
             };
 
         } catch (Exception ex) {
-            return "DETAILED";
+            return PrivacyLevel.DETAILED;
         }
     }
 
-    // ================================================================
-    // HOLDINGS AGGREGATION
-    // ================================================================
+    // ---------- Holdings aggregation ----------
     private List<AggregatedHolding> aggregateHoldings(List<HoldingItem> list) {
         if (list == null || list.isEmpty())
             return Collections.emptyList();
@@ -466,9 +450,7 @@ public class AccountPortfolioService {
                 .collect(Collectors.toList());
     }
 
-    // ================================================================
-    // POSITIONS AGGREGATION
-    // ================================================================
+    // ---------- Positions aggregation ----------
     private List<AggregatedPosition> aggregatePositions(List<PositionItem> list) {
         if (list == null || list.isEmpty())
             return Collections.emptyList();
@@ -489,9 +471,7 @@ public class AccountPortfolioService {
                 .collect(Collectors.toList());
     }
 
-    // ================================================================
-    // BROKER LOOKUP (unchanged)
-    // ================================================================
+    // Resolves broker implementation from injected broker clients.
     private BrokerClient findClientForBroker(String broker) {
         if (broker == null)
             return null;
@@ -507,9 +487,7 @@ public class AccountPortfolioService {
         return null;
     }
 
-    // ================================================================
-    // SAFE ID LOGGER (unchanged)
-    // ================================================================
+    // Safe helper for loggable credential identifier.
     private static String safeIdString(BrokerCredential cred) {
         try {
             UUID id = cred.getCredentialId();
@@ -519,9 +497,7 @@ public class AccountPortfolioService {
         }
     }
 
-    // ================================================================
-    // HOLDING ACCUMULATOR
-    // ================================================================
+    // Internal accumulator for grouped holding math.
     private static class Accumulator {
         private final String exchange;
         private final String tradingSymbol;
@@ -572,9 +548,7 @@ public class AccountPortfolioService {
         }
     }
 
-    // ================================================================
-    // POSITION ACCUMULATOR
-    // ================================================================
+    // Internal accumulator for grouped position math.
     private static class PositionAccumulator {
 
         private final String exchange;
