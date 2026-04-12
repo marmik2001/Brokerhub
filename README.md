@@ -127,12 +127,24 @@ docker compose up --build
 ### Common Commands
 
 ```bash
-docker compose down
-docker compose down -v
+# Bring everything up (rebuild images when code changes)
+docker compose up -d --build
+
+# Rebuild + redeploy only backend
+docker compose up -d --build backend
+
+# View status
+docker compose ps
+
+# Tail logs (all services or one service)
+docker compose logs -f
 docker compose logs -f backend
-docker compose logs -f market-data-service
-docker compose logs -f frontend
-docker compose logs -f db
+
+# Stop stack (keep data)
+docker compose down
+
+# Stop stack and remove volumes (reset local DB/data)
+docker compose down -v
 ```
 
 ## API Surface
