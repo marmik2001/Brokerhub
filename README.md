@@ -16,16 +16,16 @@ BrokerHub supports portfolio collaboration where users need:
 
 ## Key Features
 
-| Area                            | Capability                                      | Implementation Highlights                                                                                             |
-| ------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Identity & Access               | JWT-based stateless auth + account-scoped roles | Global user identity (`users`) with per-account membership (`account_member`), role enforcement via membership checks |
-| Group / Account Model           | Multi-account architecture                      | A single user can belong to multiple accounts with different roles and privacy rules                                  |
-| RBAC                            | Admin / Member controls                         | Admin can manage account members and roles; members manage their own settings and broker credentials                  |
-| Privacy-Aware Portfolio Sharing | Per-member privacy modes                        | `DETAILED`, `SUMMARY`, `PRIVATE` modes applied during aggregation output                                              |
-| Broker Credentials              | Envelope encryption at rest                     | Per-record DEKs + AES-256-GCM + master-key wrapping, with sensitive buffer zeroing patterns                           |
-| Broker Integration              | Unified broker abstraction                      | `BrokerClient` interface enables broker-specific adapters behind a consistent holdings/positions contract             |
-| Portfolio Aggregation           | Concurrent fan-out aggregation                  | Parallel fetch across credentials, timeout-bound execution, partial-result tolerance                                  |
-| Market Data                     | Dedicated microservice                          | Separate FastAPI service provides batch symbol pricing with caching and in-flight deduplication                       |
+| Area                            | Capability                                      | Implementation Highlights                                                                                                             |
+| ------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Identity & Access               | JWT-based stateless auth + account-scoped roles | Global user identity (`users`) with per-account membership (`account_member`), role enforcement via membership checks                 |
+| Group / Account Model           | Multi-account architecture                      | A single user can belong to multiple accounts with different roles and privacy rules                                                  |
+| RBAC                            | Admin / Member controls                         | Admin can manage account members and roles; members manage their own settings and broker credentials                                  |
+| Privacy-Aware Portfolio Sharing | Per-member privacy modes                        | `DETAILED`, `SUMMARY`, `PRIVATE` modes applied during aggregation output                                                              |
+| Broker Credentials              | Envelope encryption at rest                     | Per-record DEKs + AES-256-GCM + master-key wrapping, with sensitive buffer zeroing patterns                                           |
+| Broker Integration              | Unified broker abstraction                      | `BrokerClient` interface enables broker-specific adapters behind a consistent holdings/positions contract                             |
+| Portfolio Aggregation           | Concurrent fan-out aggregation                  | Parallel fetch across credentials, timeout-bound execution, partial-result tolerance                                                  |
+| Market Data                     | Dedicated microservice                          | Separate FastAPI service provides batch symbol pricing with Redis-backed shared caching (jittered expiry) and in-flight deduplication |
 
 ## Architecture
 
@@ -88,6 +88,7 @@ The portfolio service includes:
 
 - Concurrent retrieval across broker credentials using a bounded executor
 - Token decryption performed only at point-of-use
+- Holdings are cached per broker credential in Redis to reduce repeated broker fetches
 - Aggregation into unified account-level holdings and positions
 - Weighted-average calculations and enriched market metrics
 - Timeout handling with partial-success return behavior instead of hard failure
@@ -99,6 +100,7 @@ The portfolio service includes:
 | Backend API         | Java 17, Spring Boot, Spring Security, Spring Data JPA |
 | Auth                | JWT (JJWT), BCrypt                                     |
 | Database            | PostgreSQL, Flyway                                     |
+| Cache / Infra       | Redis                                                  |
 | Broker Calls        | OkHttp, custom broker adapters                         |
 | Market Data Service | FastAPI, yFinance, pandas                              |
 | Frontend            | React, TypeScript, Tailwind CSS, Vite                  |
@@ -123,6 +125,7 @@ docker compose up --build
 - Backend API: `http://localhost:8080`
 - Market Data Service: `http://localhost:8000`
 - PostgreSQL: `localhost:5432`
+- Redis: `localhost:6379`
 
 ### Common Commands
 
