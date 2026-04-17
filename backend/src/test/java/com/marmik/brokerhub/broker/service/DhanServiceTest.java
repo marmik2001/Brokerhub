@@ -5,6 +5,7 @@ import com.marmik.brokerhub.broker.dto.PositionItem;
 import com.marmik.brokerhub.broker.model.PriceResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestClient;
 
 import com.sun.net.httpserver.HttpServer;
 
@@ -52,7 +53,7 @@ class DhanServiceTest {
         p.setDayChangePercentage(4.0);
         when(marketData.getPrices(List.of("INFY"))).thenReturn(List.of(p));
 
-        DhanService service = new DhanService(marketData);
+        DhanService service = new DhanService(RestClient.builder(), marketData);
         setBaseUrl(service, "http://localhost:" + server.getAddress().getPort());
 
         List<HoldingItem> out = service.getHoldings("token");
@@ -69,7 +70,7 @@ class DhanServiceTest {
         MarketDataService marketData = mock(MarketDataService.class);
         when(marketData.getPrices(List.of("INFY"))).thenReturn(List.of());
 
-        DhanService service = new DhanService(marketData);
+        DhanService service = new DhanService(RestClient.builder(), marketData);
         setBaseUrl(service, "http://localhost:" + server.getAddress().getPort());
 
         List<HoldingItem> out = service.getHoldings("token");
@@ -82,7 +83,7 @@ class DhanServiceTest {
     void shouldReturnEmptyWhenHoldingsApiFails() throws Exception {
         startServer("/holdings", 500, "{}");
         MarketDataService marketData = mock(MarketDataService.class);
-        DhanService service = new DhanService(marketData);
+        DhanService service = new DhanService(RestClient.builder(), marketData);
         setBaseUrl(service, "http://localhost:" + server.getAddress().getPort());
 
         assertTrue(service.getHoldings("token").isEmpty());
@@ -98,7 +99,7 @@ class DhanServiceTest {
         p.setLastPrice(150.0);
         when(marketData.getPrices(List.of("INFY"))).thenReturn(List.of(p));
 
-        DhanService service = new DhanService(marketData);
+        DhanService service = new DhanService(RestClient.builder(), marketData);
         setBaseUrl(service, "http://localhost:" + server.getAddress().getPort());
 
         List<PositionItem> out = service.getPositions("token");
@@ -111,6 +112,7 @@ class DhanServiceTest {
         server = HttpServer.create(new InetSocketAddress(0), 0);
         server.createContext(path, exchange -> {
             byte[] bytes = body.getBytes();
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
             exchange.sendResponseHeaders(status, bytes.length);
             try (OutputStream os = exchange.getResponseBody()) {
                 os.write(bytes);

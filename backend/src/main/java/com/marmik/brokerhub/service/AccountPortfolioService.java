@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import org.springframework.stereotype.Service;
 
+import org.springframework.core.task.TaskExecutor;
 import jakarta.annotation.PreDestroy;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -47,14 +48,7 @@ public class AccountPortfolioService {
     private final BrokerCredentialService credentialService;
     private final BrokerHoldingsCacheService holdingsCacheService;
     private final List<BrokerClient> brokerClients;
-
-    private final ExecutorService executor = Executors.newFixedThreadPool(
-            Math.max(8, 2 * Runtime.getRuntime().availableProcessors()));
-
-    @PreDestroy
-    public void shutdown() {
-        executor.shutdown();
-    }
+    private final TaskExecutor taskExecutor;
 
     private static final class CredentialBundle {
         final List<BrokerCredential> creds;
@@ -205,7 +199,7 @@ public class AccountPortfolioService {
                 UUID credId = cred.getCredentialId();
                 List<T> items = fetchItems(cred, callerUserId, brokerCall);
                 return new MemberItems<>(credOwner.get(credId), items);
-            }, executor));
+            }, taskExecutor));
         }
 
         List<MemberItems<T>> fetched = awaitAll(futures, 30, TimeUnit.SECONDS);
@@ -242,7 +236,7 @@ public class AccountPortfolioService {
                 UUID credId = cred.getCredentialId();
                 List<HoldingItem> items = fetchHoldingsWithCache(cred, callerUserId);
                 return new MemberItems<>(credOwner.get(credId), items);
-            }, executor));
+            }, taskExecutor));
         }
 
         List<MemberItems<HoldingItem>> fetched = awaitAll(futures, 30, TimeUnit.SECONDS);
@@ -431,36 +425,18 @@ public class AccountPortfolioService {
      * - missing/blank/malformed key -> PRIVATE
      * - unrecognized value or parser error -> DETAILED
      */
-    private PrivacyLevel extractPrivacyLevel(String rulesJson) {
-        if (rulesJson == null || rulesJson.isBlank())
+    private PrivacyLevel extractPrivacyLevel(Map<String, Object> rules) {
+        if (rules == null || !rules.containsKey("privacy"))
             return PrivacyLevel.PRIVATE;
 
         try {
-            // Lightweight parsing: find "privacy":"VALUE" without JSON binding.
-            int keyIdx = rulesJson.indexOf("\"privacy\"");
-            if (keyIdx < 0)
-                return PrivacyLevel.PRIVATE;
-
-            int colonIdx = rulesJson.indexOf(':', keyIdx);
-            if (colonIdx < 0)
-                return PrivacyLevel.PRIVATE;
-
-            int firstQuote = rulesJson.indexOf('"', colonIdx + 1);
-            if (firstQuote < 0)
-                return PrivacyLevel.PRIVATE;
-
-            int secondQuote = rulesJson.indexOf('"', firstQuote + 1);
-            if (secondQuote < 0)
-                return PrivacyLevel.PRIVATE;
-
-            String value = rulesJson.substring(firstQuote + 1, secondQuote).trim().toUpperCase();
+            String value = String.valueOf(rules.get("privacy")).trim().toUpperCase();
             return switch (value) {
                 case "DETAILED" -> PrivacyLevel.DETAILED;
                 case "SUMMARY" -> PrivacyLevel.SUMMARY;
                 case "PRIVATE" -> PrivacyLevel.PRIVATE;
                 default -> PrivacyLevel.DETAILED;
             };
-
         } catch (Exception ex) {
             return PrivacyLevel.DETAILED;
         }

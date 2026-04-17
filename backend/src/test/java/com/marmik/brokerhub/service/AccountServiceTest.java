@@ -15,6 +15,7 @@ import org.springframework.security.access.AccessDeniedException;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -145,7 +146,7 @@ class AccountServiceTest {
 
         AccountMember out = accountService.updateOwnMemberPrivacy(userId, accountId, memberId, "summary");
 
-        assertEquals("{\"privacy\":\"SUMMARY\"}", out.getRules());
+        assertEquals(Map.of("privacy", "SUMMARY"), out.getRules());
     }
 
     @Test

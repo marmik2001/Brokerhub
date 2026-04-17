@@ -4,54 +4,46 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.marmik.brokerhub.broker.model.PriceResponse;
 
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
 @Service
 public class MarketDataService {
 
-    private final OkHttpClient client = new OkHttpClient();
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RestClient restClient;
+    private final ObjectMapper objectMapper;
 
     @Value("${marketdata.base-url}")
     private String baseUrl;
+
+    public MarketDataService(RestClient.Builder restClientBuilder, ObjectMapper objectMapper) {
+        this.restClient = restClientBuilder.build();
+        this.objectMapper = objectMapper;
+    }
 
     public List<PriceResponse> getPrices(List<String> symbols) {
         if (symbols == null || symbols.isEmpty()) {
             return Collections.emptyList();
         }
 
-        // Build URL with comma-separated symbols
         String joinedSymbols = String.join(",", symbols);
-        HttpUrl url = HttpUrl.parse(baseUrl + "/prices")
-                .newBuilder()
-                .addQueryParameter("symbols", joinedSymbols)
-                .build();
 
-        Request request = new Request.Builder()
-                .url(url)
-                .build();
+        try {
+            JsonNode root = restClient.get()
+                    .uri(baseUrl + "/prices?symbols={symbols}", joinedSymbols)
+                    .retrieve()
+                    .body(JsonNode.class);
 
-        try (Response response = client.newCall(request).execute()) {
-            if (!response.isSuccessful() || response.body() == null) {
-                return Collections.emptyList();
+            if (root != null && root.has("results")) {
+                return objectMapper.readerForListOf(PriceResponse.class).readValue(root.get("results"));
             }
-
-            String json = response.body().string();
-
-            JsonNode root = objectMapper.readTree(json).get("results");
-            return objectMapper.readerForListOf(PriceResponse.class).readValue(root);
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
-            return Collections.emptyList();
         }
+        return Collections.emptyList();
     }
 }

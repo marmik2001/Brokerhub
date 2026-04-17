@@ -3,6 +3,9 @@ package com.marmik.brokerhub.controller;
 import com.marmik.brokerhub.model.BrokerCredential;
 import com.marmik.brokerhub.service.BrokerCredentialService;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -23,30 +26,24 @@ public class BrokerCredentialController {
     }
 
     public static record StoreRequest(
+            @NotBlank(message = "accountMemberId is required")
             String accountMemberId,
+            @NotBlank(message = "broker is required")
             String broker,
+            @NotBlank(message = "token is required")
             String token,
+            @NotBlank(message = "nickname is required")
             String nickname) {
     }
 
     /** Store broker credential (owner membership or account admin). */
     @PostMapping
     public ResponseEntity<?> store(
-            @RequestBody StoreRequest req,
+            @Valid @RequestBody StoreRequest req,
             @AuthenticationPrincipal String userId) throws Exception {
 
         UUID caller = UUID.fromString(userId);
         UUID accountMemberId = UUID.fromString(req.accountMemberId());
-
-        if (req.nickname() == null || req.nickname().isBlank()) {
-            throw new IllegalArgumentException("nickname is required");
-        }
-        if (req.broker() == null || req.broker().isBlank()) {
-            throw new IllegalArgumentException("broker is required");
-        }
-        if (req.token() == null || req.token().isBlank()) {
-            throw new IllegalArgumentException("token is required");
-        }
 
         byte[] tokenBytes = req.token().getBytes(StandardCharsets.UTF_8);
         try {

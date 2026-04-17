@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -52,7 +53,7 @@ public class AccountService {
         member.setAccountId(accUuid);
         member.setUser(user);
         member.setRole("MEMBER");
-        member.setRules("{\"privacy\":\"DETAILED\"}");
+        member.setRules(new HashMap<>(Map.of("privacy", "DETAILED")));
 
         return memberRepo.save(member);
     }
@@ -82,7 +83,7 @@ public class AccountService {
         admin.setAccountId(account.getId());
         admin.setUser(user);
         admin.setRole("ADMIN");
-        admin.setRules("{\"privacy\":\"DETAILED\"}");
+        admin.setRules(new HashMap<>(Map.of("privacy", "DETAILED")));
 
         return memberRepo.save(admin);
     }
@@ -204,7 +205,7 @@ public class AccountService {
                     "Can only modify your own membership settings");
         }
 
-        member.setRules("{\"privacy\":\"" + up + "\"}");
+        member.setRules(new HashMap<>(Map.of("privacy", up)));
         return memberRepo.save(member);
     }
 }

@@ -53,7 +53,8 @@ class AccountPortfolioServiceTest {
         void setUp() {
                 service = new AccountPortfolioService(memberRepo, credentialRepo, credentialService,
                                 holdingsCacheService,
-                                List.of(brokerClient));
+                                List.of(brokerClient),
+                                Runnable::run);
 
                 lenient().when(holdingsCacheService.getCachedHoldings(anyString(), any())).thenReturn(Optional.empty());
         }
@@ -77,9 +78,9 @@ class AccountPortfolioServiceTest {
                 UUID memberUserId = UUID.randomUUID();
 
                 AccountMember admin = member(UUID.randomUUID(), accountId, adminUserId, "ADMIN",
-                                "{\"privacy\":\"PRIVATE\"}");
+                                "PRIVATE");
                 AccountMember m2 = member(UUID.randomUUID(), accountId, memberUserId, "MEMBER",
-                                "{\"privacy\":\"PRIVATE\"}");
+                                "PRIVATE");
                 when(memberRepo.findByAccountId(accountId)).thenReturn(List.of(admin, m2));
 
                 BrokerCredential c1 = cred(admin.getId(), "DHAN");
@@ -115,13 +116,13 @@ class AccountPortfolioServiceTest {
                 UUID callerId = UUID.randomUUID();
 
                 AccountMember caller = member(UUID.randomUUID(), accountId, callerId, "MEMBER",
-                                "{\"privacy\":\"PRIVATE\"}");
+                                "PRIVATE");
                 AccountMember detailed = member(UUID.randomUUID(), accountId, UUID.randomUUID(), "MEMBER",
-                                "{\"privacy\":\"DETAILED\"}");
+                                "DETAILED");
                 AccountMember summary = member(UUID.randomUUID(), accountId, UUID.randomUUID(), "MEMBER",
-                                "{\"privacy\":\"SUMMARY\"}");
+                                "SUMMARY");
                 AccountMember priv = member(UUID.randomUUID(), accountId, UUID.randomUUID(), "MEMBER",
-                                "{\"privacy\":\"PRIVATE\"}");
+                                "PRIVATE");
                 when(memberRepo.findByAccountId(accountId)).thenReturn(List.of(caller, detailed, summary, priv));
 
                 BrokerCredential c1 = cred(caller.getId(), "DHAN");
@@ -175,7 +176,7 @@ class AccountPortfolioServiceTest {
                 UUID accountId = UUID.randomUUID();
                 UUID callerId = UUID.randomUUID();
                 AccountMember caller = member(UUID.randomUUID(), accountId, callerId, "ADMIN",
-                                "{\"privacy\":\"DETAILED\"}");
+                                "DETAILED");
                 when(memberRepo.findByAccountId(accountId)).thenReturn(List.of(caller));
 
                 BrokerCredential c = cred(caller.getId(), "DHAN");
@@ -202,7 +203,7 @@ class AccountPortfolioServiceTest {
                 assertEquals((10 * 100 + 20 * 130) / 30.0, full.get(0).getAveragePrice());
         }
 
-        private AccountMember member(UUID memberId, UUID accountId, UUID userId, String role, String rules) {
+        private AccountMember member(UUID memberId, UUID accountId, UUID userId, String role, String privacy) {
                 User u = new User();
                 u.setId(userId);
                 AccountMember m = new AccountMember();
@@ -210,7 +211,7 @@ class AccountPortfolioServiceTest {
                 m.setAccountId(accountId);
                 m.setUser(u);
                 m.setRole(role);
-                m.setRules(rules);
+                m.setRules(new HashMap<>(Map.of("privacy", privacy)));
                 return m;
         }
 

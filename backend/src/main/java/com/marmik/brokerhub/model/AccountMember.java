@@ -3,6 +3,8 @@ package com.marmik.brokerhub.model;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.util.UUID;
+import java.util.Map;
+import java.util.HashMap;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -28,5 +30,5 @@ public class AccountMember {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb", nullable = true)
-    private String rules = "{}";
+    private Map<String, Object> rules = new HashMap<>();
 }
