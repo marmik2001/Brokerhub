@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.marmik.brokerhub.broker.adapter.ZerodhaAdapter;
+import lombok.extern.slf4j.Slf4j;
 import com.marmik.brokerhub.broker.core.BrokerClient;
 import com.marmik.brokerhub.broker.dto.HoldingItem;
 import com.marmik.brokerhub.broker.dto.PositionItem;
@@ -16,8 +17,11 @@ import com.zerodhatech.models.User;
 
 import jakarta.annotation.PostConstruct;
 
-//Was used earlier for local testing and POC
+/**
+ * BrokerClient implementation for Zerodha Kite.
+ */
 @Service
+@Slf4j
 public class KiteService implements BrokerClient {
 
     @Value("${kite.api.key:<>}")
@@ -67,7 +71,7 @@ public class KiteService implements BrokerClient {
                     .map(ZerodhaAdapter::fromZerodha)
                     .toList();
         } catch (KiteException | IOException e) {
-            e.printStackTrace();
+            log.error("Failed to fetch holdings from Kite", e);
             return Collections.emptyList();
         }
     }

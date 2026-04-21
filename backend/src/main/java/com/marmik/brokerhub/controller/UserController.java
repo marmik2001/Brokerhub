@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * REST controller for managing user profiles and registration.
+ */
 @RestController
 @RequestMapping("/api/user")
 public class UserController {

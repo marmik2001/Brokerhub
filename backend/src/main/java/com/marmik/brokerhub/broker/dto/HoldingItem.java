@@ -5,6 +5,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Represents a single holding item returned from a broker.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -14,12 +17,19 @@ public class HoldingItem {
     private String tradingSymbol;
     private String isin;
 
-    private int quantity; // Zerodha: quantity, Dhan: totalQty
-    private int t1Quantity; // Zerodha: t1Quantity, Dhan: t1Qty
-    private String collateralQuantity; // Zerodha: collateralQuantity(String), Dhan: collateralQty (int)
-    private double averagePrice; // Zerodha: averagePrice, Dhan: avgCostPrice
+    /** Represents total quantity (Zerodha: quantity, Dhan: totalQty) */
+    private int quantity;
+    
+    /** Represents T1 quantity (Zerodha: t1Quantity, Dhan: t1Qty) */
+    private int t1Quantity;
+    
+    /** Represents collateral quantity (Zerodha: collateralQuantity, Dhan: collateralQty) */
+    private String collateralQuantity;
+    
+    /** Represents average buy cost (Zerodha: averagePrice, Dhan: avgCostPrice) */
+    private double averagePrice;
 
-    // Fields -> Only in Zerodha, added to dhan using market-data-service
+    /** Last traded market price */
     private double lastPrice;
     private double pnl;
     private double dayChange;

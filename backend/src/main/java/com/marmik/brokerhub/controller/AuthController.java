@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * REST controller for handling authentication, login, and password management.
+ */
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -30,6 +33,9 @@ public class AuthController {
     public static record ChangePasswordRequest(String oldPassword, String newPassword) {
     }
 
+    /**
+     * Authenticate a user and return a JWT token along with user details.
+     */
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest req) {
 
@@ -47,6 +53,9 @@ public class AuthController {
                 "accounts", authService.getUserAccountSummaries(user.getId())));
     }
 
+    /**
+     * Change the password for the currently authenticated user.
+     */
     @PutMapping("/change-password")
     public ResponseEntity<?> changePassword(
             @RequestBody ChangePasswordRequest req,

@@ -18,6 +18,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Service for managing user accounts, memberships, and roles.
+ */
 @Service
 @RequiredArgsConstructor
 public class AccountService {

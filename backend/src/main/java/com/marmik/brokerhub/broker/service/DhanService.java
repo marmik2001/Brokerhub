@@ -12,13 +12,18 @@ import org.springframework.web.client.RestClient;
 
 import com.marmik.brokerhub.broker.adapter.DhanAdapter;
 import com.marmik.brokerhub.broker.core.BrokerClient;
+import lombok.extern.slf4j.Slf4j;
 import com.marmik.brokerhub.broker.dto.HoldingItem;
 import com.marmik.brokerhub.broker.dto.PositionItem;
 import com.marmik.brokerhub.broker.dto.dhan.DhanHolding;
 import com.marmik.brokerhub.broker.dto.dhan.DhanPosition;
 import com.marmik.brokerhub.broker.model.PriceResponse;
 
+/**
+ * BrokerClient implementation for Dhan broker.
+ */
 @Service
+@Slf4j
 public class DhanService implements BrokerClient {
 
     @Value("${dhan.api.base-url}")
@@ -50,28 +55,23 @@ public class DhanService implements BrokerClient {
 
             if (dhanHoldings == null) return Collections.emptyList();
 
-            // Step 1: Convert DhanHoldings → HoldingItems
             List<HoldingItem> holdings = dhanHoldings.stream()
                     .map(DhanAdapter::fromDhan)
                     .toList();
 
-            // Step 2: Find symbols whose data is required
             List<String> symbols = holdings.stream()
                     .map(HoldingItem::getTradingSymbol)
                     .toList();
 
             List<PriceResponse> prices = marketDataService.getPrices(symbols);
 
-            // Step 3: Convert list → map for quick lookup
             Map<String, PriceResponse> priceMap = prices.stream()
                     .collect(Collectors.toMap(PriceResponse::getSymbol, p -> p));
 
-            // Step 4: Enrich holdings
             holdings.forEach(holding -> {
                 PriceResponse price = priceMap.get(holding.getTradingSymbol());
 
                 if (price != null && price.getLastPrice() != 0) {
-                    // Normal case
                     holding.setLastPrice(price.getLastPrice());
                     holding.setDayChange(price.getDayChange());
                     holding.setDayChangePercentage(price.getDayChangePercentage());
@@ -79,7 +79,6 @@ public class DhanService implements BrokerClient {
                     double pnl = (price.getLastPrice() - holding.getAveragePrice()) * holding.getQuantity();
                     holding.setPnl(pnl);
                 } else {
-                    // Fallback: show zero P&L, and last price = avg price
                     double avg = holding.getAveragePrice();
                     holding.setLastPrice(avg);
                     holding.setDayChange(0);
@@ -90,7 +89,7 @@ public class DhanService implements BrokerClient {
 
             return holdings;
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to fetch holdings from Dhan", e);
             return Collections.emptyList();
         }
     }
@@ -108,12 +107,10 @@ public class DhanService implements BrokerClient {
 
             if (dhanPositions == null) return Collections.emptyList();
 
-            // Map DhanPosition -> PositionItem (minimal)
             List<PositionItem> positions = dhanPositions.stream()
                     .map(DhanAdapter::fromDhanPosition)
                     .toList();
 
-            // Enrich positions with market last price (same source as holdings)
             List<String> symbols = positions.stream()
                     .map(PositionItem::getTradingSymbol)
                     .toList();
@@ -131,7 +128,7 @@ public class DhanService implements BrokerClient {
 
             return positions;
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to fetch positions from Dhan", e);
             return Collections.emptyList();
         }
     }

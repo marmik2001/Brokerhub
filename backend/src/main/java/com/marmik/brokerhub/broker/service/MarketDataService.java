@@ -7,11 +7,13 @@ import com.marmik.brokerhub.broker.model.PriceResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.Collections;
 import java.util.List;
 
 @Service
+@Slf4j
 public class MarketDataService {
 
     private final RestClient restClient;
@@ -42,7 +44,7 @@ public class MarketDataService {
                 return objectMapper.readerForListOf(PriceResponse.class).readValue(root.get("results"));
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to fetch market data", e);
         }
         return Collections.emptyList();
     }

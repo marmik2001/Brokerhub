@@ -14,6 +14,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Service for handling user authentication and password management.
+ */
 @Service
 @RequiredArgsConstructor
 public class AuthService {

@@ -19,6 +19,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Arrays;
 
+/**
+ * OncePerRequestFilter that validates JWT tokens and sets the SecurityContext.
+ */
 @Component
 public class JwtFilter extends OncePerRequestFilter {
 
@@ -70,11 +73,8 @@ public class JwtFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Don't run this filter for:
-     * - auth endpoints (login)
-     * - signup (creating new accounts)
-     * - public/static resources
-     * - preflight OPTIONS requests
+     * Determines whether the filter should be skipped for specific endpoints.
+     * Skips public/static resources, auth endpoints, and CORS preflight requests.
      */
     @Override
     protected boolean shouldNotFilter(@NonNull HttpServletRequest request) throws ServletException {

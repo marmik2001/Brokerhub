@@ -15,6 +15,9 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * REST controller for managing broker credentials (e.g., API keys, tokens) securely.
+ */
 @RestController
 @RequestMapping("/api/brokers")
 public class BrokerCredentialController {
@@ -36,7 +39,10 @@ public class BrokerCredentialController {
             String nickname) {
     }
 
-    /** Store broker credential (owner membership or account admin). */
+    /** 
+     * Store a broker credential for a specific account member. 
+     * Requires owner membership or account admin access.
+     */
     @PostMapping
     public ResponseEntity<?> store(
             @Valid @RequestBody StoreRequest req,
@@ -65,7 +71,10 @@ public class BrokerCredentialController {
         }
     }
 
-    /** List credentials for account member (owner membership or account admin). */
+    /** 
+     * List credentials for an account member. 
+     * Requires owner membership or account admin access.
+     */
     @GetMapping
     public ResponseEntity<?> list(
             @RequestParam("accountMemberId") String accountMemberId,
@@ -82,7 +91,10 @@ public class BrokerCredentialController {
                         "nickname", bc.getNickname())).toList());
     }
 
-    /** Delete credential (owner membership or account admin). */
+    /** 
+     * Delete a specific broker credential. 
+     * Requires owner membership or account admin access.
+     */
     @DeleteMapping("/{credentialId}")
     public ResponseEntity<?> delete(
             @PathVariable String credentialId,

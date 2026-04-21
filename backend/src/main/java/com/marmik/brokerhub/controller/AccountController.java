@@ -11,6 +11,9 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * REST controller for managing accounts and account memberships.
+ */
 @RestController
 @RequestMapping("/api/accounts")
 public class AccountController {
@@ -37,7 +40,9 @@ public class AccountController {
     public static record PrivacyUpdateRequest(String privacy) {
     }
 
-    /** Create a new account (caller becomes ADMIN). */
+    /** 
+     * Create a new account. The caller becomes the ADMIN of the new account.
+     */
     @PostMapping
     public ResponseEntity<?> createAccount(
             @RequestBody CreateAccountRequest req,
@@ -53,7 +58,10 @@ public class AccountController {
                 "role", admin.getRole()));
     }
 
-    /** List members for an account (ADMIN only). */
+    /** 
+     * List all members for a specific account. 
+     * Restricted to ADMIN users only.
+     */
     @GetMapping("/{accountId}/members")
     public ResponseEntity<?> listMembers(
             @PathVariable String accountId,
@@ -73,7 +81,10 @@ public class AccountController {
                         "role", m.getRole())).toList());
     }
 
-    /** Add member to account (ADMIN only). */
+    /** 
+     * Add a new member to an account. 
+     * Restricted to ADMIN users only.
+     */
     @PostMapping("/{accountId}/members")
     public ResponseEntity<?> addMember(
             @PathVariable String accountId,
@@ -97,7 +108,10 @@ public class AccountController {
                 "memberName", member.getUser().getMemberName()));
     }
 
-    /** Update member role (ADMIN only). */
+    /** 
+     * Update the role of an existing account member. 
+     * Restricted to ADMIN users only.
+     */
     @PatchMapping("/{accountId}/members/{memberId}/role")
     public ResponseEntity<?> updateMemberRole(
             @PathVariable String accountId,
@@ -120,7 +134,10 @@ public class AccountController {
                 "role", updated.getRole()));
     }
 
-    /** Remove member (ADMIN only). */
+    /** 
+     * Remove a member from the account. 
+     * Restricted to ADMIN users only.
+     */
     @DeleteMapping("/{accountId}/members/{memberId}")
     public ResponseEntity<?> removeMember(
             @PathVariable String accountId,
@@ -137,7 +154,9 @@ public class AccountController {
         return ResponseEntity.ok(Map.of("message", "Member removed"));
     }
 
-    /** List all accounts current user belongs to. */
+    /** 
+     * List all accounts the currently authenticated user belongs to.
+     */
     @GetMapping
     public ResponseEntity<?> listUserAccounts(
             @AuthenticationPrincipal String userId) {
@@ -147,7 +166,9 @@ public class AccountController {
                 accountService.listUserAccountViews(userUUID));
     }
 
-    /** Update own membership privacy. */
+    /** 
+     * Update privacy rules for the caller's own membership in an account.
+     */
     @PatchMapping("/{accountId}/members/{memberId}/rule")
     public ResponseEntity<?> updateMemberRule(
             @PathVariable String accountId,

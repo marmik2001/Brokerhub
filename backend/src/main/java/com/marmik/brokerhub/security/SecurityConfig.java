@@ -11,6 +11,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 
+/**
+ * Main Spring Security configuration class.
+ * Sets up stateless session management and configures the JWT filter.
+ */
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor

@@ -28,7 +28,9 @@ public class JwtUtil {
         this.expirationMs = expirationMs;
     }
 
-    /** Generate a user-scoped token (contains only sub=userId). */
+    /**
+     * Generate a user-scoped token containing the userId as the subject.
+     */
     public String generateUserToken(String userId) {
         Date now = new Date();
         Date exp = new Date(now.getTime() + expirationMs);
@@ -57,7 +59,9 @@ public class JwtUtil {
         }
     }
 
-    /** Return userId from JWT subject. */
+    /**
+     * Extract and return the userId from the JWT subject.
+     */
     public Optional<String> getUserId(String token) {
         try {
             Claims c = parseClaimsJws(token).getBody();

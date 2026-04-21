@@ -5,6 +5,10 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Minimal DTO returned by aggregate positions endpoint.
+ * Contains non-sensitive, displayable fields.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -13,19 +17,19 @@ public class AggregatedPosition {
     private String exchange;
     private String tradingSymbol;
 
-    // total aggregated quantity (sum of netQtys)
+    /** Total aggregated quantity (sum of netQtys) */
     private long quantity;
 
-    // weighted average price across position items
+    /** Weighted average price across position items */
     private double averagePrice;
 
-    // sum of pnls (realized + unrealized) across positions
+    /** Sum of PnLs (realized + unrealized) across positions */
     private double pnl;
 
-    // last seen price (preferred non-zero)
+    /** Last seen market price (preferred non-zero) */
     private double lastPrice;
 
-    // optional day-change metadata (from payloads if present)
+    /** Optional day-change metadata (from payloads if present) */
     private double dayChange;
     private double dayChangePercentage;
 }

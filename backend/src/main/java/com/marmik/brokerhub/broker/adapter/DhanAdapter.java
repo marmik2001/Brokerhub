@@ -12,7 +12,7 @@ import com.marmik.brokerhub.broker.dto.dhan.DhanPosition;
 public class DhanAdapter {
 
     /**
-     * Map DhanHolding -> HoldingItem (existing behaviour).
+     * Map DhanHolding to unified HoldingItem.
      */
     public static HoldingItem fromDhan(DhanHolding holding) {
         if (holding == null)
@@ -31,20 +31,13 @@ public class DhanAdapter {
     }
 
     /**
-     * Map DhanPosition -> PositionItem (minimal stock-only model).
-     *
-     * Note:
-     * - averagePrice prefers buyAvg; fallback to costPrice.
-     * - DhanPosition DTO currently does not expose lastPrice. We fallback to
-     * costPrice or averagePrice.
+     * Map DhanPosition to unified PositionItem.
      */
     public static PositionItem fromDhanPosition(DhanPosition p) {
         if (p == null)
             return null;
 
         double avgPrice = (p.buyAvg > 0) ? p.buyAvg : p.costPrice;
-        // DhanPosition doesn't currently provide lastPrice in the DTO. Use sensible
-        // fallback.
         double lastPrice = p.costPrice > 0 ? p.costPrice : avgPrice;
 
         double unrealized = p.unrealizedProfit;

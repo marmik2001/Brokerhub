@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * REST controller for retrieving aggregated portfolio data (holdings and positions).
+ */
 @RestController
 @RequestMapping("/api/accounts")
 public class AccountPortfolioController {

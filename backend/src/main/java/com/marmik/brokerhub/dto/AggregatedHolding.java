@@ -18,10 +18,20 @@ public class AggregatedHolding {
     private String tradingSymbol;
     private String isin;
 
-    private long quantity; // aggregated sum
-    private double averagePrice; // weighted average price
-    private double pnl; // aggregated PnL
-    private double lastPrice; // most recent non-zero last price (if available)
-    private double dayChange; // day change matching lastPrice
+    /** Aggregated sum of quantity across brokers */
+    private long quantity;
+    
+    /** Weighted average price */
+    private double averagePrice;
+    
+    /** Total aggregated PnL */
+    private double pnl;
+    
+    /** Most recent non-zero last price (if available) */
+    private double lastPrice;
+    
+    /** Day change matching the last price */
+    private double dayChange;
+    
     private double dayChangePercentage;
 }

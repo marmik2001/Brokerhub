@@ -3,7 +3,14 @@ package com.marmik.brokerhub.broker.adapter;
 import com.marmik.brokerhub.broker.dto.HoldingItem;
 import com.zerodhatech.models.Holding;
 
+/**
+ * Adapter that converts Zerodha DTOs into unified backend DTOs.
+ */
 public class ZerodhaAdapter {
+    
+    /**
+     * Map Zerodha Holding to unified HoldingItem.
+     */
     public static HoldingItem fromZerodha(Holding holding) {
         return HoldingItem.builder()
                 .exchange(holding.exchange)

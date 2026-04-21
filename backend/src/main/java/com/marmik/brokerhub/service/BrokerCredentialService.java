@@ -15,6 +15,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Service for securely managing broker credentials (e.g., tokens, API keys).
+ * Uses envelope encryption to protect sensitive broker data at rest.
+ */
 @Service
 @RequiredArgsConstructor
 public class BrokerCredentialService {
