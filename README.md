@@ -48,13 +48,11 @@ flowchart LR
     C[Broker Credential Service<br/>Envelope Encryption]
     P[Portfolio Aggregation Engine]
     H[Broker Holdings Cache]
-    DH[Dhan Broker Client]
-    K[Kite Broker Client]
+    BC[Broker Client]
     M[Market Data Service<br/>FastAPI]
     R[(Redis Cache)]
     DB[(PostgreSQL)]
-    DA[[Dhan API]]
-    KA[[Zerodha Kite API]]
+    BA[[Broker API]]
     YF[[Yahoo Finance]]
 
     U --> F
@@ -65,11 +63,9 @@ flowchart LR
     B -->|Users, accounts, memberships,<br/>encrypted credentials| DB
     P --> H
     H <--> R
-    P --> DH
-    P --> K
-    DH --> DA
-    K --> KA
-    DH -->|price enrichment| M
+    P --> BC
+    BC --> BA
+    BC -->|price enrichment| M
     M <--> R
     M --> YF
 ```
