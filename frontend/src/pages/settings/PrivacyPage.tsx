@@ -62,17 +62,17 @@ const SettingsPrivacyPage: React.FC = () => {
         privacy
       );
 
-      // resp.rules may be a raw JSON string like '{"privacy":"SUMMARY"}' or an object.
+      // The response rules may be a raw JSON string or an object.
       let parsedRules: any = resp.rules;
       if (typeof parsedRules === "string") {
         try {
           parsedRules = JSON.parse(parsedRules);
         } catch {
-          // leave as string if parse fails
+          // Leave as string if parsing fails.
         }
       }
 
-      // update auth context so UI reflects new rules
+      // Update auth context so UI reflects new rules.
       updateAccountRules(currentAccount.accountId, parsedRules);
 
       toast.success("Privacy updated");

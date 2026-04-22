@@ -1,4 +1,3 @@
-// src/components/layout/AppLayout.tsx
 import React from "react";
 import Navbar from "./Navbar";
 

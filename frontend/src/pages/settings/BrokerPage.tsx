@@ -1,4 +1,3 @@
-// src/pages/settings/BrokerPage.tsx
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import DataTable from "../../components/DataTable";
@@ -14,12 +13,10 @@ import { parseApiError } from "../../utils/apiError";
 const SettingsBrokerPage: React.FC = () => {
   const { currentAccount } = useAuth();
 
-  // credential list state
   const [credentials, setCredentials] = useState<BrokerCredential[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [showAdd, setShowAdd] = useState<boolean>(false);
 
-  // Prefer membership id from currentAccount; no casts needed
   const accountMemberId = currentAccount?.accountMemberId;
   const accountIdFallback = currentAccount?.accountId;
 

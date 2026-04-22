@@ -1,10 +1,16 @@
 import api from "../api";
 
+/**
+ * Request payload for user login.
+ */
 export interface LoginRequest {
   identifier: string;
   password: string;
 }
 
+/**
+ * Authenticated user details.
+ */
 export interface AuthUser {
   id: string;
   name: string;
@@ -13,8 +19,8 @@ export interface AuthUser {
 }
 
 /**
- * AccountSummary includes name/description and accountMemberId
- * so frontend components (SelectAccount) can render full info returned by GET /api/accounts.
+ * Account summary information including role and privacy rules.
+ * Used by frontend components to render account lists and manage selection.
  */
 export interface AccountSummary {
   accountId: string;
@@ -26,19 +32,24 @@ export interface AccountSummary {
 }
 
 /**
- * LoginResponse: NOTE - login no longer returns accounts. We only get token + user.
+ * Response payload upon successful login.
+ * Note: login no longer returns accounts; it only returns token and user details.
  */
 export interface LoginResponse {
   token: string;
   user: AuthUser;
 }
 
+/**
+ * Request payload to change user password.
+ */
 export interface ChangePasswordPayload {
   oldPassword: string;
   newPassword: string;
 }
 
 /**
+ * Authenticates a user and retrieves an access token.
  * POST /api/auth/login
  */
 export async function loginService(req: LoginRequest): Promise<LoginResponse> {
@@ -47,6 +58,7 @@ export async function loginService(req: LoginRequest): Promise<LoginResponse> {
 }
 
 /**
+ * Updates the password for the currently authenticated user.
  * PUT /api/auth/change-password
  */
 export async function changePassword(payload: ChangePasswordPayload) {
@@ -55,8 +67,7 @@ export async function changePassword(payload: ChangePasswordPayload) {
 }
 
 /**
- * POST /api/user/register
- * Creates a new user (without creating an account)
+ * Request payload for registering a new user.
  */
 export interface RegisterUserRequest {
   loginId: string;
@@ -65,6 +76,9 @@ export interface RegisterUserRequest {
   password: string;
 }
 
+/**
+ * Response payload upon successful user registration.
+ */
 export interface RegisterUserResponse {
   id: string;
   loginId: string;
@@ -72,6 +86,10 @@ export interface RegisterUserResponse {
   name: string;
 }
 
+/**
+ * Creates a new user (without creating an account initially).
+ * POST /api/user/register
+ */
 export async function registerUser(
   req: RegisterUserRequest
 ): Promise<RegisterUserResponse> {
@@ -80,9 +98,10 @@ export async function registerUser(
 }
 
 /**
+ * Updates the privacy rules for a specific account member.
  * PATCH /api/accounts/{accountId}/members/{memberId}/rule
- * Minimal wrapper to update member privacy.
- * Expects server to return updated member payload { memberId, accountId, rules }
+ * 
+ * Expects the server to return the updated member payload: { memberId, accountId, rules }
  */
 export async function updateMemberRule(
   accountId: string,

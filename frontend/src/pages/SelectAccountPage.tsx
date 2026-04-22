@@ -5,8 +5,10 @@ import { listAccounts } from "../services/accountService";
 import type { AccountSummary } from "../services/authService";
 
 const SelectGroupPage: React.FC = () => {
-  // NOTE: we intentionally do NOT rely on auth.accounts here.
-  // This page fetches the authoritative accounts list from GET /api/accounts.
+  /**
+   * We intentionally do NOT rely on auth.accounts here.
+   * This page fetches the authoritative accounts list from GET /api/accounts.
+   */
   const { selectAccountDirect, clearCurrentAccount } = useAuth();
   const navigate = useNavigate();
 
@@ -40,9 +42,9 @@ const SelectGroupPage: React.FC = () => {
   }, []);
 
   const handleSelect = (account: AccountSummary) => {
-    // Persist selection via AuthContext helper which will:
-    //  - persist currentAccount into localStorage
-    //  - if accountMemberId not present, attempt to fetch it in background
+    // Persists selection via AuthContext helper which will:
+    //  - Persist currentAccount into localStorage.
+    //  - If accountMemberId not present, attempt to fetch it in background.
     selectAccountDirect(account);
     navigate("/");
   };

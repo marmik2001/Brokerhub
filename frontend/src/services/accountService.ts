@@ -1,11 +1,17 @@
 import api from "../api";
 import type { AccountSummary } from "./authService";
 
+/**
+ * Request payload for creating a new account.
+ */
 export interface CreateAccountRequest {
   accountName: string;
   accountDesc?: string;
 }
 
+/**
+ * Details of an account member.
+ */
 export interface Member {
   memberId: string;
   loginId: string;
@@ -15,8 +21,8 @@ export interface Member {
 }
 
 /**
+ * Creates a new account for the authenticated user as ADMIN.
  * POST /api/accounts
- * Creates a new account for the authenticated user as ADMIN
  */
 export async function createAccount(
   req: CreateAccountRequest
@@ -26,8 +32,8 @@ export async function createAccount(
 }
 
 /**
+ * Lists all accounts the authenticated user belongs to.
  * GET /api/accounts
- * Lists all accounts the authenticated user belongs to
  */
 export async function listAccounts(): Promise<AccountSummary[]> {
   const { data } = await api.get<AccountSummary[]>("/accounts");
@@ -35,6 +41,7 @@ export async function listAccounts(): Promise<AccountSummary[]> {
 }
 
 /**
+ * Fetches all members for a specific account.
  * GET /api/accounts/{accountId}/members
  */
 export async function getMembers(accountId: string): Promise<Member[]> {
@@ -43,8 +50,8 @@ export async function getMembers(accountId: string): Promise<Member[]> {
 }
 
 /**
+ * Adds an existing user by loginId or email to an account.
  * POST /api/accounts/{accountId}/members
- * Adds an existing user by loginId or email
  */
 export async function addMember(
   accountId: string,
@@ -58,6 +65,7 @@ export async function addMember(
 }
 
 /**
+ * Updates the role of a specific member in an account.
  * PATCH /api/accounts/{accountId}/members/{memberId}/role
  */
 export async function updateMemberRole(
@@ -69,6 +77,7 @@ export async function updateMemberRole(
 }
 
 /**
+ * Removes a member from an account.
  * DELETE /api/accounts/{accountId}/members/{memberId}
  */
 export async function removeMember(

@@ -1,4 +1,3 @@
-// src/components/EmptyState.tsx
 import React from "react";
 
 const EmptyState: React.FC<{ title?: string; description?: string }> = ({

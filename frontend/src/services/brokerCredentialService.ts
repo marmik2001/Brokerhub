@@ -1,6 +1,8 @@
-// src/services/brokerCredentialService.ts
 import api from "../api";
 
+/**
+ * Details of a stored broker credential.
+ */
 export interface BrokerCredential {
   credentialId: string;
   accountMemberId?: string;
@@ -10,7 +12,8 @@ export interface BrokerCredential {
 }
 
 /**
- * List credentials for a membership.
+ * Fetches a list of broker credentials for a specific membership.
+ * GET /api/brokers
  *
  * Preferred: pass accountMemberId (the account_member.id for the current user's membership).
  * Fallback: if accountMemberId is not provided, the function will try to use accountId query param
@@ -29,9 +32,11 @@ export async function listCredentials(
 }
 
 /**
- * Store a credential.
- * Body: { accountMemberId, broker, nickname, token }
- * - accountMemberId is required (we require caller to pass the membership id).
+ * Stores a new broker credential.
+ * POST /api/brokers
+ * 
+ * Payload requirements:
+ * - accountMemberId is required (the membership id).
  * - token should be a string (token JSON or raw token).
  */
 export async function storeCredential(payload: {
@@ -45,7 +50,8 @@ export async function storeCredential(payload: {
 }
 
 /**
- * Delete a credential by id.
+ * Deletes a stored credential by its ID.
+ * DELETE /api/brokers/{credentialId}
  */
 export async function deleteCredential(credentialId: string): Promise<void> {
   await api.delete(`/brokers/${credentialId}`);

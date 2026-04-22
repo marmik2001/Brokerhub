@@ -2,15 +2,13 @@ import axios, { AxiosError } from "axios";
 
 /**
  * Axios instance for all Brokerhub API calls.
- * Automatically attaches Authorization + X-Account-Id headers if available.
+ * Automatically attaches Authorization header if available in local storage.
  */
-
 const api = axios.create({
   baseURL: "/api",
   headers: { "Content-Type": "application/json" },
 });
 
-// Attach Authorization
 api.interceptors.request.use((config) => {
   try {
     const stored = localStorage.getItem("brokerhub_auth");
@@ -26,7 +24,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Centralized error handling
 api.interceptors.response.use(
   (res) => res,
   (error: AxiosError<any>) => {

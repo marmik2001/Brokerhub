@@ -1,8 +1,7 @@
 import api from "../api";
 
 /**
- * Lightweight portfolio types used by the dashboard.
- *
+ * Lightweight holding type used by the dashboard.
  * Note: kept minimal so frontend code remains decoupled from backend DTOs.
  */
 export type Holding = {
@@ -17,6 +16,9 @@ export type Holding = {
   dayChangePercentage: number;
 };
 
+/**
+ * Lightweight position type used by the dashboard.
+ */
 export type Position = {
   exchange: string;
   tradingSymbol: string;
@@ -28,39 +30,36 @@ export type Position = {
   dayChangePercentage?: number;
 };
 
+/**
+ * Wrapper for aggregated responses containing full and partial data results.
+ */
 export type AggregatedResponse<T> = {
   full: T[];
   partial: string[];
 };
 
 /**
- * Service to fetch aggregated holdings for an account.
+ * Fetches aggregated holdings for a specific account.
+ * GET /api/accounts/{accountId}/aggregate-holdings
  */
 export async function fetchAggregateHoldings(
   accountId?: string
 ): Promise<AggregatedResponse<Holding>> {
   if (!accountId) return { full: [], partial: [] };
   const url = `/accounts/${accountId}/aggregate-holdings`;
-  try {
-    const resp = await api.get<AggregatedResponse<Holding>>(url);
-    return resp?.data ?? { full: [], partial: [] };
-  } catch {
-    return { full: [], partial: [] };
-  }
+  const resp = await api.get<AggregatedResponse<Holding>>(url);
+  return resp?.data ?? { full: [], partial: [] };
 }
 
 /**
- * Service to fetch aggregated positions for an account.
+ * Fetches aggregated positions for a specific account.
+ * GET /api/accounts/{accountId}/aggregate-positions
  */
 export async function fetchAggregatePositions(
   accountId?: string
 ): Promise<AggregatedResponse<Position>> {
   if (!accountId) return { full: [], partial: [] };
   const url = `/accounts/${accountId}/aggregate-positions`;
-  try {
-    const resp = await api.get<AggregatedResponse<Position>>(url);
-    return resp?.data ?? { full: [], partial: [] };
-  } catch {
-    return { full: [], partial: [] };
-  }
+  const resp = await api.get<AggregatedResponse<Position>>(url);
+  return resp?.data ?? { full: [], partial: [] };
 }

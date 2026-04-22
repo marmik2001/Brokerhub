@@ -1,4 +1,6 @@
-# services.py
+"""
+Business logic for fetching and caching market data using yfinance and Redis.
+"""
 import logging
 import json
 import os
@@ -71,7 +73,7 @@ def _make_price_response_from_hist(symbol: str, hist: Optional[pd.DataFrame]) ->
             dayChangePercentage=round(day_change_pct, 2),
         )
     except Exception as exc:
-        logger.debug("Failed to create PriceResponse for %s: %s", symbol, exc)
+        logger.error("Failed to create PriceResponse for %s", symbol, exc_info=True)
         return PriceResponse(symbol=symbol, lastPrice=0, dayChange=0, dayChangePercentage=0)
 
 def fetch_price_single(symbol: str, force_refresh: bool = False) -> PriceResponse:
@@ -96,7 +98,7 @@ def _get_cached_if_fresh(sym: str) -> Optional[PriceResponse]:
         if raw:
             return PriceResponse(**json.loads(raw))
     except Exception as exc:
-        logger.debug("Redis get failed for %s: %s", sym, exc)
+        logger.error("Redis get failed for %s", sym, exc_info=True)
     return None
 
 
@@ -107,7 +109,7 @@ def _cache_response(sym: str, response: PriceResponse) -> None:
     try:
         _redis_client.setex(_cache_key(sym), ttl, _serialize_price(response))
     except Exception as exc:
-        logger.debug("Redis set failed for %s: %s", sym, exc)
+        logger.error("Redis set failed for %s", sym, exc_info=True)
 
 def fetch_prices_batch(symbols: List[str], force_refresh: bool = False) -> List[PriceResponse]:
     """
@@ -168,7 +170,7 @@ def fetch_prices_batch(symbols: List[str], force_refresh: bool = False) -> List[
                     tickers = yf.Tickers(joined)
                     data = tickers.history(period="2d", group_by="ticker", threads=True)
                 except Exception as exc:
-                    logger.warning("yfinance batch fetch failed for %s: %s", symbols_nse, exc)
+                    logger.error("yfinance batch fetch failed for %s", symbols_nse, exc_info=True)
                     data = None
 
                 for i, sym in enumerate(chunk):
@@ -191,7 +193,7 @@ def fetch_prices_batch(symbols: List[str], force_refresh: bool = False) -> List[
                             elif isinstance(data, dict):
                                 hist = data.get(key)
                         except Exception as e:
-                            logger.debug("Error while deducing history for %s: %s", key, e)
+                            logger.error("Error while deducing history for %s", key, exc_info=True)
                             hist = None
 
                     response = _make_price_response_from_hist(sym, hist)

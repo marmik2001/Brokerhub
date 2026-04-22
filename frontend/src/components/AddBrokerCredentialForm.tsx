@@ -1,11 +1,11 @@
-// src/components/AddBrokerCredentialForm.tsx
 import React, { useState } from "react";
 import { toast } from "react-hot-toast";
 import { storeCredential } from "../services/brokerCredentialService";
 import { parseApiError } from "../utils/apiError";
 
 interface Props {
-  accountMemberId?: string; // required to create; parent may pass it
+  /** Required to create; parent may pass it */
+  accountMemberId?: string;
   onSaved: () => void;
   onCancel?: () => void;
 }
@@ -50,7 +50,7 @@ const AddBrokerCredentialForm: React.FC<Props> = ({
         token: tokenJson.trim(),
       });
       toast.success("Saved");
-      // wipe token input immediately (do not store)
+      // Wipe token input immediately (do not store).
       setTokenJson("");
       onSaved();
     } catch (err: unknown) {

@@ -2,7 +2,8 @@ import React from "react";
 
 type Props = {
   title: string;
-  value: React.ReactNode; // now accepts ReactNode for richer content
+  /** Accepts ReactNode for richer content like currency symbols */
+  value: React.ReactNode;
   description?: string;
   className?: string;
 };

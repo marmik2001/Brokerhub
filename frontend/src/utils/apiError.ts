@@ -1,15 +1,13 @@
-// src/utils/apiError.ts
 /**
- * Normalize errors thrown by fetch/post helpers or runtime exceptions.
+ * Normalizes errors thrown by fetch/post helpers or runtime exceptions.
  * Returns an object: { message, field } where `field` is a guessed field
  * name (like 'loginId') if the message clearly pertains to a field.
  */
-
 export function parseApiError(err: unknown): {
   message: string;
   field?: string;
 } {
-  // Default
+  // Default to generic request failed message.
   let message = "Request failed";
   let field: string | undefined = undefined;
 
@@ -17,36 +15,22 @@ export function parseApiError(err: unknown): {
     return { message, field };
   }
 
-  // If error is an Error instance
+  // If error is an Error instance (thrown by api.ts interceptor).
   if (err instanceof Error) {
     message = err.message || message;
   } else if (typeof err === "string") {
     message = err;
   } else if (typeof err === "object") {
-    // try to extract common keys
-    const anyErr = err as any;
-    const responseData = anyErr?.response?.data;
-
-    if (typeof responseData?.error === "string") {
-      message = responseData.error;
-    } else if (typeof responseData?.message === "string") {
-      message = responseData.message;
-    } else if (typeof anyErr.error === "string") {
-      message = anyErr.error;
-    } else if (typeof anyErr.message === "string") {
-      message = anyErr.message;
-    } else {
-      try {
-        message = JSON.stringify(anyErr);
-      } catch {
-        message = String(anyErr);
-      }
+    try {
+      message = JSON.stringify(err);
+    } catch {
+      message = String(err);
     }
   }
 
   const lc = message.toLowerCase();
 
-  // heuristics: if message contains loginid or login id or "already taken" for loginId
+  // Heuristics: if message contains loginId or "already taken" for loginId.
   if (
     lc.includes("loginid") ||
     lc.includes("login id") ||
@@ -55,7 +39,7 @@ export function parseApiError(err: unknown): {
     field = "loginId";
   }
 
-  // also check for common field names
+  // Also check for common field names.
   if (!field) {
     if (lc.includes("password")) field = "password";
     if (lc.includes("membername") || lc.includes("member name"))

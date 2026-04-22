@@ -30,33 +30,49 @@ const HomePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+
     if (section === "holding") {
       setLoading(true);
       fetchAggregateHoldings(accountId)
         .then((res) => {
+          if (!isMounted) return;
           setHoldings(res.full || []);
           setPartialHoldings(res.partial || []);
         })
         .catch((err: unknown) => {
+          if (!isMounted) return;
           setHoldings([]);
           setPartialHoldings([]);
           const { message } = parseApiError(err);
           toast.error(message || "Failed to load holdings");
         })
-        .finally(() => setLoading(false));
+        .finally(() => {
+          if (isMounted) setLoading(false);
+        });
     } else if (section === "positions") {
       setLoading(true);
       fetchAggregatePositions(accountId)
         .then((res) => {
+          if (!isMounted) return;
           setPositions(res.full || []);
           setPartialPositions(res.partial || []);
         })
-        .catch(() => {
+        .catch((err: unknown) => {
+          if (!isMounted) return;
           setPositions([]);
           setPartialPositions([]);
+          const { message } = parseApiError(err);
+          toast.error(message || "Failed to load positions");
         })
-        .finally(() => setLoading(false));
+        .finally(() => {
+          if (isMounted) setLoading(false);
+        });
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, [section, accountId]);
 
   return (

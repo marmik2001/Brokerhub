@@ -6,6 +6,9 @@ import {
   type AccountSummary,
 } from "../services/authService";
 
+/**
+ * Interface defining the properties and methods available in the AuthContext.
+ */
 interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
@@ -20,7 +23,7 @@ interface AuthContextType {
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  // new: allow updating rules for an account (minimal helper)
+  /** Updates rules for an account */
   updateAccountRules: (accountId: string, rules: any) => void;
 }
 
@@ -38,7 +41,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
-  // accounts + currentAccount still exist as state — but login no longer fills them
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
   const [currentAccount, setCurrentAccount] = useState<AccountSummary | null>(
     null
@@ -51,9 +53,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const parsed = JSON.parse(stored);
         setUser(parsed.user || null);
         setToken(parsed.token || null);
-
-        // NOTE: we NO LONGER load accounts/currentAccount from storage
-        // Accounts must be fetched from GET /accounts
       } catch (err) {
         console.error("Failed to parse stored auth", err);
       }
@@ -64,25 +63,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem("brokerhub_auth", JSON.stringify(data));
   };
 
-  /**
-   * Login no longer stores accounts or currentAccount.
-   */
   const login = async (identifier: string, password: string) => {
     const data = await loginService({ identifier, password });
 
     const authData = {
       token: data.token,
       user: data.user,
-      // accounts removed
-      // currentAccount removed
     };
 
     persist(authData);
 
     setUser(data.user);
     setToken(data.token);
-
-    // clear accounts and currentAccount from state on login
     setAccounts([]);
     setCurrentAccount(null);
   };
@@ -95,9 +87,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setCurrentAccount(null);
   };
 
-  /**
-   * selectAccount persists only token + user + currentAccount.
-   */
   const selectAccount = (accountId: string) => {
     const selected = accounts.find((a) => a.accountId === accountId) || null;
     if (!selected) return;
@@ -106,16 +95,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       token,
       user,
       currentAccount: selected,
-      // accounts are NOT stored anymore
     };
 
     persist(updated);
     setCurrentAccount(selected);
   };
 
-  /**
-   * selectAccountDirect persists only token + user + currentAccount.
-   */
   const selectAccountDirect = (account: AccountSummary) => {
     const newAccounts = accounts.some((a) => a.accountId === account.accountId)
       ? accounts.map((a) => (a.accountId === account.accountId ? account : a))
@@ -128,7 +113,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       token,
       user,
       currentAccount: account,
-      // accounts not persisted
     };
 
     persist(persistent);
@@ -139,7 +123,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setAccounts(newList);
     setCurrentAccount(account);
 
-    // persist only token + user + currentAccount (NOT accounts)
     const updated = {
       token,
       user,
@@ -151,8 +134,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const clearCurrentAccount = () => {
     setCurrentAccount(null);
-
-    // Keep auth session, remove selected account from persisted auth.
     const updated = {
       token,
       user,
@@ -175,7 +156,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (currentAccount && currentAccount.accountId === accountId) {
       setCurrentAccount({ ...currentAccount, rules });
-      // Also persist currentAccount so selection survives reload
       const persistent = {
         token,
         user,
