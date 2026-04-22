@@ -1,0 +1,85 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: brokerhub-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-brokerhub}
+      POSTGRES_USER: ${POSTGRES_USER:-brokerhub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Welcome1}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-brokerhub} -d ${POSTGRES_DB:-brokerhub}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: brokerhub-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  market-data-service:
+    image: ghcr.io/marmik2001/brokerhub-market-data:latest
+    container_name: brokerhub-market-data
+    ports:
+      - "8000:8000"
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CACHE_TTL_SECONDS: ${CACHE_TTL_SECONDS:-1200}
+      CACHE_TTL_JITTER_SECONDS: ${CACHE_TTL_JITTER_SECONDS:-30}
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  backend:
+    image: ghcr.io/marmik2001/brokerhub-backend:latest
+    container_name: brokerhub-backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-brokerhub}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-brokerhub}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-Welcome1}
+      MARKETDATA_BASE_URL: http://market-data-service:8000
+      JWT_SECRET: ${JWT_SECRET:-brokerhub-demo-jwt-secret-change-before-real-deployments}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      APP_SECURITY_MASTER_KEY_BASE64: ${APP_SECURITY_MASTER_KEY_BASE64:-E4WvKG0eRjQg1I2oscIvOZTh1gXDJ/5BQGb1GI41czs=}
+      SPRING_DATA_REDIS_HOST: ${SPRING_DATA_REDIS_HOST:-redis}
+      SPRING_DATA_REDIS_PORT: ${SPRING_DATA_REDIS_PORT:-6379}
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      market-data-service:
+        condition: service_started
+
+  frontend:
+    image: ghcr.io/marmik2001/brokerhub-frontend:latest
+    container_name: brokerhub-frontend
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:8080
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:

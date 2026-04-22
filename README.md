@@ -112,12 +112,32 @@ The portfolio service includes:
 
 - Docker Desktop (or Docker Engine + Compose)
 
-### Quick Start
+### Quick Start (Local Development)
 
 ```bash
 cp .env.example .env
 docker compose up --build
 ```
+
+### Running the Published Demo Stack
+
+If you want to quickly demo the application using the pre-built Docker images without building from source, you can use the published images on GitHub Container Registry.
+
+If you already cloned this repo:
+
+```bash
+docker compose -f docker-compose.demo.yml up
+```
+
+If you want to run directly from published images without cloning the repo:
+
+```bash
+mkdir brokerhub-demo && cd brokerhub-demo
+curl -fsSL https://raw.githubusercontent.com/marmik2001/Brokerhub/main/docker-compose.demo.yml -o docker-compose.demo.yml
+docker compose -f docker-compose.demo.yml up
+```
+
+`docker-compose.demo.yml` includes demo-safe defaults. Replace secrets before any real deployment.
 
 ### Services
 
@@ -148,6 +168,11 @@ docker compose down
 
 # Stop stack and remove volumes (reset local DB/data)
 docker compose down -v
+
+# Demo stack commands (published images)
+docker compose -f docker-compose.demo.yml up -d
+docker compose -f docker-compose.demo.yml logs -f backend
+docker compose -f docker-compose.demo.yml down
 ```
 
 ### Testing
@@ -163,6 +188,7 @@ cd backend && ./mvnw test
 ### CI
 
 - Backend tests are executed in GitHub Actions via `.github/workflows/backend-tests.yml`.
+- Docker images are published to GHCR via `.github/workflows/docker-publish.yml` (push to `main` or manual dispatch).
 - Sensitive CI values are provided through GitHub Secrets (for example: `JWT_SECRET`, `APP_SECURITY_MASTER_KEY_BASE64`).
 
 ## API Surface
