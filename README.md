@@ -34,24 +34,64 @@ BrokerHub is split into clear service boundaries:
 1. **Frontend (`React + TypeScript`)**
 2. **Core Backend API (`Spring Boot`)**
 3. **Market Data Microservice (`FastAPI`)**
-4. **PostgreSQL + Flyway migrations**
+4. **Redis shared cache**
+5. **PostgreSQL + Flyway migrations**
 
 ### High-level flow
+
+```mermaid
+flowchart LR
+    U[User / Browser]
+    F[Frontend<br/>React + TypeScript]
+    B[Backend API<br/>Spring Boot]
+    A[Auth / RBAC / Privacy]
+    C[Broker Credential Service<br/>Envelope Encryption]
+    P[Portfolio Aggregation Engine]
+    H[Broker Holdings Cache]
+    DH[Dhan Broker Client]
+    K[Kite Broker Client]
+    M[Market Data Service<br/>FastAPI]
+    R[(Redis Cache)]
+    DB[(PostgreSQL)]
+    DA[[Dhan API]]
+    KA[[Zerodha Kite API]]
+    YF[[Yahoo Finance]]
+
+    U --> F
+    F -->|HTTP / JSON| B
+    B --> A
+    B --> C
+    B --> P
+    B -->|Users, accounts, memberships,<br/>encrypted credentials| DB
+    P --> H
+    H <--> R
+    P --> DH
+    P --> K
+    DH --> DA
+    K --> KA
+    DH -->|price enrichment| M
+    M <--> R
+    M --> YF
+```
 
 ```text
 Client (React)
    -> Spring Boot API
       -> Auth + Account/RBAC + Privacy + Broker Credential Management
-      -> Broker Adapters (Dhan, extensible broker interface)
       -> Concurrent Aggregation Engine
-      -> FastAPI Market Data Service (price enrichment, caching)
+         -> Redis-backed holdings cache for broker holdings
+         -> Broker clients (Dhan implemented, Kite scaffolded)
+            -> External broker APIs
+            -> FastAPI Market Data Service for price enrichment
+               -> Redis cache
+               -> Yahoo Finance
    -> PostgreSQL (users, accounts, memberships, encrypted credentials)
 ```
 
 ## Broker Integrations
 
 - **Dhan**: Implemented for holdings and positions ingestion into a unified schema.
-- **Zerodha/Kite**: Foundation laid as an early integration pathway through adapter/service scaffolding, aligned with the broker abstraction model.
+- **Zerodha/Kite**: Integration scaffolding exists through the shared broker abstraction, but it is currently partial compared with Dhan and does not yet implement positions aggregation.
 
 ## Security
 
@@ -101,7 +141,7 @@ The portfolio service includes:
 | Auth                | JWT (JJWT), BCrypt                                     |
 | Database            | PostgreSQL, Flyway                                     |
 | Cache / Infra       | Redis                                                  |
-| Broker Calls        | OkHttp, custom broker adapters                         |
+| Broker Calls        | Spring RestClient, Zerodha Kite SDK, custom broker adapters |
 | Market Data Service | FastAPI, yFinance, pandas                              |
 | Frontend            | React, TypeScript, Tailwind CSS, Vite                  |
 | Local Runtime       | Docker Compose                                         |
@@ -196,7 +236,7 @@ cd backend && ./mvnw test
 | Domain             | Endpoints                                                                                       |
 | ------------------ | ----------------------------------------------------------------------------------------------- |
 | Auth               | `/api/user/register`, `/api/auth/login`, `/api/auth/change-password`                            |
-| Accounts           | `/api/accounts`, `/api/accounts/{accountId}/members`, role and privacy update routes            |
+| Accounts           | `/api/accounts`, `/api/accounts/{accountId}/members`, `/api/accounts/{accountId}/members/{memberId}/role`, `/api/accounts/{accountId}/members/{memberId}/rule` |
 | Broker Credentials | `/api/brokers` (store/list/delete)                                                              |
 | Aggregation        | `/api/accounts/{accountId}/aggregate-holdings`, `/api/accounts/{accountId}/aggregate-positions` |
 | Profile            | `/api/user/me`                                                                                  |
