@@ -254,3 +254,7 @@ The current implementation includes:
 - Strengthen observability (structured metrics, tracing, operational dashboards)
 - Expand automated test coverage further (controllers, integration, end-to-end)
 - Evolve key lifecycle and rotation workflows for encrypted credential management
+
+## License
+
+This project is licensed under the Apache License 2.0. See [LICENSE](/Users/marmikmundada/code/Brokerhub/LICENSE).
