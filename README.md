@@ -62,7 +62,7 @@ BrokerHub supports portfolio collaboration where users need:
 ![Portfolio Dashboard showing aggregated holdings and P&L](./assets/portfolio-dashboard.png)
 
 ### Multi-Account Group Selection
-![Group selection screen showing different account memberships](./assets/group-selection.png)
+<img src="./assets/group-selection.png" alt="Group selection screen showing different account memberships" width="400">
 
 ### Granular Privacy Controls
 ![Privacy settings showing Detailed, Summary, and Private modes](./assets/privacy-controls.png)
