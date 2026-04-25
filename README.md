@@ -1,8 +1,37 @@
 # BrokerHub
 
-BrokerHub is a multi-account investment aggregation platform for collaborative portfolio visibility across members in a shared account context.
+[![CI - Backend Tests](https://github.com/marmik2001/Brokerhub/actions/workflows/backend-tests.yml/badge.svg)](https://github.com/marmik2001/Brokerhub/actions/workflows/backend-tests.yml)
+[![Docker Publish](https://github.com/marmik2001/Brokerhub/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/marmik2001/Brokerhub/actions/workflows/docker-publish.yml)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 
-It combines account-scoped RBAC, privacy-aware aggregation, encrypted broker credential storage, and microservice-based market enrichment in an architecture designed to support additional brokers and user groups.
+**BrokerHub** is a unified investment aggregation platform that enables families and investment groups to securely share portfolio visibility while maintaining individual privacy controls.
+
+It combines account-scoped RBAC, privacy-aware aggregation, encrypted broker credential storage, and microservice-based market enrichment in an extensible architecture featuring a unified adapter pattern to seamlessly integrate and concurrently fetch data across multiple brokerages.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Screenshots](#-screenshots--demo)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+  - [High-level flow](#high-level-flow)
+- [Key Engineering Challenges Solved](#key-engineering-challenges-solved)
+- [Broker Integrations](#broker-integrations)
+- [Security](#security)
+- [Privacy Model](#privacy-model)
+- [Aggregation Engine](#aggregation-engine)
+- [Local Development](#local-development)
+  - [Prerequisites](#prerequisites)
+  - [Quick Start (Local Development)](#quick-start-local-development)
+  - [Running the Published Demo Stack](#running-the-published-demo-stack)
+  - [Services](#services)
+  - [Common Commands](#common-commands)
+  - [Testing](#testing)
+- [CI](#ci)
+- [API Surface](#api-surface)
+- [Future Roadmap](#future-roadmap)
+- [License](#license)
 
 ## Overview
 
@@ -26,6 +55,33 @@ BrokerHub supports portfolio collaboration where users need:
 | Broker Integration              | Unified broker abstraction                      | `BrokerClient` interface enables broker-specific adapters behind a consistent holdings/positions contract                             |
 | Portfolio Aggregation           | Concurrent fan-out aggregation                  | Parallel fetch across credentials, timeout-bound execution, partial-result tolerance                                                  |
 | Market Data                     | Dedicated microservice                          | Separate FastAPI service provides batch symbol pricing with Redis-backed shared caching (jittered expiry) and in-flight deduplication |
+
+## 📸 Screenshots
+
+### Unified Portfolio Dashboard
+![Portfolio Dashboard showing aggregated holdings and P&L](./assets/portfolio-dashboard.png)
+
+### Multi-Account Group Selection
+![Group selection screen showing different account memberships](./assets/group-selection.png)
+
+### Granular Privacy Controls
+![Privacy settings showing Detailed, Summary, and Private modes](./assets/privacy-controls.png)
+
+### Secure Broker Integration
+![Broker access screen showing credential management](./assets/broker-integration.png)
+
+## Tech Stack
+
+| Layer               | Technology                                             |
+| ------------------- | ------------------------------------------------------ |
+| Backend API         | Java 17, Spring Boot, Spring Security, Spring Data JPA |
+| Auth                | JWT (JJWT), BCrypt                                     |
+| Database            | PostgreSQL, Flyway                                     |
+| Cache / Infra       | Redis                                                  |
+| Broker Calls        | Spring RestClient, Zerodha Kite SDK, custom broker adapters |
+| Market Data Service | FastAPI, yFinance, pandas                              |
+| Frontend            | React, TypeScript, Tailwind CSS, Vite                  |
+| Local Runtime       | Docker Compose                                         |
 
 ## Architecture
 
@@ -70,19 +126,12 @@ flowchart LR
     M --> YF
 ```
 
-```text
-Client (React)
-   -> Spring Boot API
-      -> Auth + Account/RBAC + Privacy + Broker Credential Management
-      -> Concurrent Aggregation Engine
-         -> Redis-backed holdings cache for broker holdings
-         -> Broker clients (Dhan implemented, Kite scaffolded)
-            -> External broker APIs
-            -> FastAPI Market Data Service for price enrichment
-               -> Redis cache
-               -> Yahoo Finance
-   -> PostgreSQL (users, accounts, memberships, encrypted credentials)
-```
+## Key Engineering Challenges Solved
+
+- **Resilient Concurrent Aggregation:** Built a bounded executor to concurrently fetch data across multiple broker credentials, implementing timeout handling with partial-success fallbacks rather than hard failures.
+- **Envelope Encryption:** Designed a secure credential storage mechanism using per-record DEKs (AES-256-GCM) wrapped with a master key, including explicit memory zeroing for sensitive buffers.
+- **Service Decomposition & Caching:** Extracted market data enrichment into a dedicated FastAPI microservice, utilizing a Redis-backed shared cache with jittered expiry and in-flight deduplication to prevent rate-limiting from Yahoo Finance.
+- **Privacy-Aware Data Shaping:** Integrated complex RBAC and privacy rules directly into the aggregation pipeline, ensuring API payloads are dynamically shaped (`DETAILED`, `SUMMARY`, `PRIVATE`) based on the requesting user's account membership role.
 
 ## Broker Integrations
 
@@ -128,19 +177,6 @@ The portfolio service includes:
 - Aggregation into unified account-level holdings and positions
 - Weighted-average calculations and enriched market metrics
 - Timeout handling with partial-success return behavior instead of hard failure
-
-## Tech Stack
-
-| Layer               | Technology                                             |
-| ------------------- | ------------------------------------------------------ |
-| Backend API         | Java 17, Spring Boot, Spring Security, Spring Data JPA |
-| Auth                | JWT (JJWT), BCrypt                                     |
-| Database            | PostgreSQL, Flyway                                     |
-| Cache / Infra       | Redis                                                  |
-| Broker Calls        | Spring RestClient, Zerodha Kite SDK, custom broker adapters |
-| Market Data Service | FastAPI, yFinance, pandas                              |
-| Frontend            | React, TypeScript, Tailwind CSS, Vite                  |
-| Local Runtime       | Docker Compose                                         |
 
 ## Local Development
 
@@ -221,7 +257,7 @@ docker compose -f docker-compose.demo.yml down
 cd backend && ./mvnw test
 ```
 
-### CI
+## CI
 
 - Backend tests are executed in GitHub Actions via `.github/workflows/backend-tests.yml`.
 - Docker images are published to GHCR via `.github/workflows/docker-publish.yml` (push to `main` or manual dispatch).
@@ -237,16 +273,6 @@ cd backend && ./mvnw test
 | Aggregation        | `/api/accounts/{accountId}/aggregate-holdings`, `/api/accounts/{accountId}/aggregate-positions` |
 | Profile            | `/api/user/me`                                                                                  |
 
-## Design Notes
-
-The current implementation includes:
-
-- Multi-account membership architecture
-- RBAC and privacy controls integrated into aggregation logic
-- Envelope encryption for broker credentials
-- Service decomposition that separates market enrichment from core account logic
-- Broker extensibility through a shared broker abstraction
-
 ## Future Roadmap
 
 - Expand broker coverage via the existing broker abstraction layer
@@ -257,4 +283,4 @@ The current implementation includes:
 
 ## License
 
-This project is licensed under the Apache License 2.0. See [LICENSE](/Users/marmikmundada/code/Brokerhub/LICENSE).
+Licensed under Apache 2.0. See [LICENSE](./LICENSE).
