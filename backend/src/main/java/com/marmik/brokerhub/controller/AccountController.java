@@ -52,10 +52,17 @@ public class AccountController {
         AccountMember admin = accountService.createAccountForUser(
                 caller, req.accountName(), req.accountDesc());
 
-        return ResponseEntity.ok(Map.of(
-                "accountId", admin.getAccountId(),
-                "name", req.accountName(),
-                "role", admin.getRole()));
+        Map<String, Object> response = new java.util.HashMap<>();
+        response.put("accountId", admin.getAccountId());
+        response.put("accountMemberId", admin.getId());
+        response.put("name", req.accountName());
+        if (req.accountDesc() != null) {
+            response.put("description", req.accountDesc());
+        }
+        response.put("role", admin.getRole());
+        response.put("rules", admin.getRules());
+
+        return ResponseEntity.ok(response);
     }
 
     /** 

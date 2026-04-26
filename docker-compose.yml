@@ -56,6 +56,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      target: builder
     container_name: brokerhub-backend
     command: ./mvnw spring-boot:run
     environment:

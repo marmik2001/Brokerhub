@@ -53,6 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const parsed = JSON.parse(stored);
         setUser(parsed.user || null);
         setToken(parsed.token || null);
+        setCurrentAccount(parsed.currentAccount || null);
       } catch (err) {
         console.error("Failed to parse stored auth", err);
       }
